@@ -18,6 +18,8 @@
 #define FOR_ALL(container, lambda) std::for_each(container.begin(), container.end(), lambda)
 // using namespace std;
 
+// #define DEBUG
+
 struct _Char{
     char c;
 };
@@ -126,3 +128,35 @@ _PRINT(prints, _Char{' '})
 //     info(t...);
 // }
 
+#ifdef DEBUG
+void _test_print(){
+    using namespace std;
+    string s = "abc";
+    vector<int> v = {1, 2, 3};
+    vector<int*> vp = {&v[0], &v[1], &v[2]};
+    vector<vector<int>> vv(3, v);
+    vector<vector<vector<int>>> vvv(3, vv);
+    map<int, int> mp = {{1, 2}, {4, 5}};
+    print(1);
+    print(1, 'a', v, vp, vv, vvv, mp);
+    print([](ostream& out, auto i){ out << i; }, 1, 'a', "aiueo", v, vv, mp);
+    cout<<endl;
+    print(v);
+    cout<<endl;
+    print([](ostream& out, auto i){ out << i; }, v);
+    cout<<endl;
+    print([](ostream& out, auto i){ out << i; }, vp);
+    cout<<endl;
+    print([](ostream& out, auto i){ out << *i; }, vp);
+    cout<<endl;
+    print(mp);
+    printl(getAtom(mp));
+    printl(getAtom(*mp.begin()));
+    pair<int , char> p{1, 'a'};
+    printl(p);
+    printl(getAtom(p));
+    printl(1, 2, 3, 'a', "aaa", vv, mp, vvv);
+    printc(1, 2, 3, 'b', "aaa", vv, mp, vvv);
+    prints(1, 2, 3, 'c', "aaa", vv, mp, vvv);
+}
+#endif
