@@ -18,7 +18,17 @@
 #define FOR_ALL(container, lambda) std::for_each(container.begin(), container.end(), lambda)
 // using namespace std;
 
-// #define DEBUG
+#define DEBUG
+
+template <class... F>
+struct OLambda : F...{
+    OLambda(F... f): F(f)...{ }
+};
+
+template <class... S>
+auto olambda(S... s){
+    return OLambda<S...>(s...);
+}
 
 struct _Char{
     char c;
@@ -158,5 +168,7 @@ void _test_print(){
     printl(1, 2, 3, 'a', "aaa", vv, mp, vvv);
     printc(1, 2, 3, 'b', "aaa", vv, mp, vvv);
     prints(1, 2, 3, 'c', "aaa", vv, mp, vvv);
+    // olambda([](ostream& out, auto i){ out << *i; });
+    prints(olambda([](ostream& out, auto i){ out << i; }, [](ostream& out, char c){ out << '\'' << c << '\''; }), 1, 2, 3, 'c', "aaa", vv, mp, vvv);
 }
 #endif
