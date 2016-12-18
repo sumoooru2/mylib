@@ -47,20 +47,24 @@ std::false_type outable(...);
 template<class F, class T>
 auto callable(F f, T t) -> decltype(f(t), std::true_type());
 template<class F, class S, class T>
-auto callable(F f, S& s, T t) -> decltype(f(s, t), std::true_type());
+auto callable(F f, S s, T t) -> decltype(f(s, t), std::true_type());
 std::false_type callable(...);
 
 
 template <class S>
-auto getAtom(S s) -> typename std::enable_if<!decltype(iterable(s))::value, S>::type{
+auto getAtom(S&& s) -> typename std::enable_if<!decltype(iterable(s))::value, S>::type{
     return s;
 }
 template <class S, class T>
-auto getAtom(std::pair<S, T> s){
+auto getAtom(std::pair<S, T>& s){
     return getAtom(s.first);
 }
-template <class S, class = typename S::iterator>
-auto getAtom(S s){
+template <class S, class T>
+auto getAtom(std::pair<S, T>&& s){
+    return getAtom(s.first);
+}
+template <class S, class = typename std::remove_reference<S>::type::iterator>
+auto getAtom(S&& s){
     return getAtom(*s.begin());
 }
 
@@ -68,7 +72,7 @@ auto getAtom(S s){
 template<std::ostream& out, class F, class H, class... T>
 void _print(F f, H&& h, T&&... t);
 template<std::ostream& out, class F, class T>
-auto _print(F f, T t) -> typename std::enable_if<decltype(outable<out>(t))::value, void>::type{
+auto _print(F f, T&& t) -> typename std::enable_if<decltype(outable<out>(t))::value, void>::type{
     f(out, t);
 }
 template<std::ostream& out, class F>
@@ -76,14 +80,14 @@ void _print(F, _Char t){
     out << t.c;
 }
 template<std::ostream& out, class F, class T>
-auto _print(F f, T t) -> typename std::enable_if<!decltype(outable<out>(t))::value && !decltype(iterable(*t.begin()))::value, void>::type{
+auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::value && !decltype(iterable(*t.begin()))::value, void>::type{
     _print<out>(f, _Char{'['});
     for(auto& elem : t){
-        _print<out>(f, elem, _Char{elem == *t.rbegin() ? ']' : ' '});
+        _print<out>(f, elem, _Char{&elem == &*t.rbegin() ? ']' : ' '});
     }
 }
 template<std::ostream& out, class F, class T>
-auto _print(F f, T t) -> typename std::enable_if<!decltype(outable<out>(t))::value && decltype(iterable(*t.begin()))::value, void>::type{
+auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::value && decltype(iterable(*t.begin()))::value, void>::type{
     _print<out>(f, _Char{'['});
     for(auto& elem : t){
         _print<out>(f, elem, _Char{&elem == &*t.rbegin() ? ']' : t.size() > 10 ? '\n' : ' '});
@@ -100,7 +104,7 @@ void _print(F f, H&& h, T&&... t){
 }
 
 template<std::ostream& out = std::cout, class F, class S, class... T>
-auto print(F f, S s, T&&... t) -> decltype(f(out, getAtom(s)), void()){
+auto print(F f, S&& s, T&&... t) -> decltype(f(out, getAtom(s)), void()){
     _print<out>(f, s, t...);
 }
 template<std::ostream& out = std::cout, class... T>
@@ -110,16 +114,16 @@ void print(T&&... t){
 
 #define _PRINT(func, suffix) \
 template<std::ostream& out = std::cout, class F, class S, class... T> \
-auto func(F f, S s) -> decltype(f(out, getAtom(s)), void()){ \
+auto func(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){ \
     _print<out>(f, s, _Char{'\n'}); \
 } \
 template<std::ostream& out = std::cout, class F, class S, class... T> \
-auto func(F f, S s, T&&... t) -> decltype(f(out, getAtom(s)), void()){ \
+auto func(F f, S&& s, T&&... t) -> decltype(f(out, getAtom(s)), void()){ \
     _print<out>(f, s, suffix); \
     func<out>(f, t...); \
 } \
 template<std::ostream& out = std::cout, class... T> \
-void func(T&&... t){ \
+void func(T... t){ \
     func<out>([](std::ostream&, auto&& a){ out << a; }, t...); \
 }
 
