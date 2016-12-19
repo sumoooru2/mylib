@@ -1,3 +1,4 @@
+#pragma once
 #include<iostream>
 #include<vector>
 #include<list>
@@ -18,7 +19,7 @@
 #define FOR_ALL(container, lambda) std::for_each(container.begin(), container.end(), lambda)
 // using namespace std;
 
-#define DEBUG
+// #define DEBUG
 
 template <class... F>
 struct OLambda : F...{
@@ -85,6 +86,7 @@ auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::v
     for(auto& elem : t){
         _print<out>(f, elem, _Char{&elem == &*t.rbegin() ? ']' : ' '});
     }
+    if(t.empty()){ _print<out>(f, _Char{']'}); }
 }
 template<std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::value && decltype(iterable(*t.begin()))::value, void>::type{
@@ -92,6 +94,7 @@ auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::v
     for(auto& elem : t){
         _print<out>(f, elem, _Char{&elem == &*t.rbegin() ? ']' : t.size() > 10 ? '\n' : ' '});
     }
+    if(t.empty()){ _print<out>(f, _Char{']'}); }
 }
 template<std::ostream& out, class F, class S, class T>
 void _print(F f, std::pair<S, T> p){
