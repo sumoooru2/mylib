@@ -19,11 +19,30 @@
 #define FOR_ALL(container, lambda) std::for_each(container.begin(), container.end(), lambda)
 // using namespace std;
 
-// #define DEBUG
+#define DEBUG
 
 template <class... F>
 struct OLambda : F...{
     OLambda(F... f): F(f)...{ }
+};
+//for gcc
+template <class S>
+struct OLambda<S> : S{
+    OLambda(S s): S(s){ }
+    using S::operator();
+};
+template <class S, class T>
+struct OLambda<S, T> : S, T{
+    OLambda(S s, T t): S(s), T(t){ }
+    using S::operator();
+    using T::operator();
+};
+template <class S, class T, class U>
+struct OLambda<S, T, U> : S, T, U{
+    OLambda(S s, T t, U u): S(s), T(t), U(u){ }
+    using S::operator();
+    using T::operator();
+    using U::operator();
 };
 
 template <class... S>
@@ -121,13 +140,21 @@ auto func(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){ \
     _print<out>(f, s, _Char{'\n'}); \
 } \
 template<std::ostream& out = std::cout, class F, class S, class... T> \
-auto func(F f, S&& s, T&&... t) -> decltype(f(out, getAtom(s)), void()){ \
+auto func(F f, S&& s, T&&... t) -> decltype(typename std::enable_if<sizeof...(T) != 0, void>::type(), f(out, getAtom(s)), void()){ \
     _print<out>(f, s, suffix); \
     func<out>(f, t...); \
 } \
-template<std::ostream& out = std::cout, class... T> \
-void func(T... t){ \
-    func<out>([](std::ostream&, auto&& a){ out << a; }, t...); \
+template<std::ostream& out = std::cout, class R, class S, class... T> \
+auto func(R&& r, S&& s, T... t) -> typename std::enable_if<!decltype(callable(r, cout, getAtom(s)))::value, void>::type{ \
+    func<out>([](std::ostream&, auto&& a){ out << a; }, r, s, t...); \
+} \
+template<std::ostream& out = std::cout, class R, class S> \
+auto func(R&& r, S&& s) -> typename std::enable_if<!decltype(callable(r, cout, getAtom(s)))::value, void>::type{ \
+    func<out>([](std::ostream&, auto&& a){ out << a; }, r, s); \
+} \
+template<std::ostream& out = std::cout, class R> \
+void func(R&& r){ \
+    func<out>([](std::ostream&, auto&& a){ out << a; }, r); \
 }
 
 _PRINT(printl, _Char{'\n'})
@@ -175,7 +202,7 @@ void _test_print(){
     printl(1, 2, 3, 'a', "aaa", vv, mp, vvv);
     printc(1, 2, 3, 'b', "aaa", vv, mp, vvv);
     prints(1, 2, 3, 'c', "aaa", vv, mp, vvv);
-    // olambda([](ostream& out, auto i){ out << *i; });
     prints(olambda([](ostream& out, auto i){ out << i; }, [](ostream& out, char c){ out << '\'' << c << '\''; }), 1, 2, 3, 'c', "aaa", vv, mp, vvv);
+
 }
 #endif
