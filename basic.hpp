@@ -19,7 +19,7 @@
 #define FOR_ALL(container, lambda) std::for_each(container.begin(), container.end(), lambda)
 // using namespace std;
 
-#define DEBUG
+// #define DEBUG
 
 template <class... F>
 struct OLambda : F...{
@@ -92,7 +92,13 @@ auto getAtom(S&& s){
 template<std::ostream& out, class F, class H, class... T>
 void _print(F f, H&& h, T&&... t);
 template<std::ostream& out, class F, class T>
+auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::value && !decltype(iterable(t))::value, void>::type{
+    f(out, t);
+}
+template<std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if<decltype(outable<out>(t))::value, void>::type{
+// // auto _print(F f, T&& t) -> typename std::enable_if<decltype(callable(f, out, t))::value, void>::type{
+// auto _print(F f, T&& t) -> decltype(f(out, t), void()){
     f(out, t);
 }
 template<std::ostream& out, class F>
@@ -173,6 +179,9 @@ _PRINT(prints, _Char{' '})
 // }
 
 #ifdef DEBUG
+struct _Elem{
+    int x, y;
+};
 void _test_print(){
     using namespace std;
     string s = "abc";
@@ -203,6 +212,8 @@ void _test_print(){
     printc(1, 2, 3, 'b', "aaa", vv, mp, vvv);
     prints(1, 2, 3, 'c', "aaa", vv, mp, vvv);
     prints(olambda([](ostream& out, auto i){ out << i; }, [](ostream& out, char c){ out << '\'' << c << '\''; }), 1, 2, 3, 'c', "aaa", vv, mp, vvv);
+    vector<_Elem> ve(3, {1, 2});
+    prints([](ostream& out, _Elem e){out << e.x; }, ve);
 
 }
 #endif
