@@ -19,7 +19,7 @@
 #define FOR_ALL(container, lambda) std::for_each(container.begin(), container.end(), lambda)
 // using namespace std;
 
-// #define DEBUG
+#define DEBUG
 
 template <class... F>
 struct OLambda : F...{
@@ -83,6 +83,14 @@ template <class S, class T>
 auto getAtom(std::pair<S, T>&& s){
     return getAtom(s.first);
 }
+template <class S, class T>
+auto getAtom(const std::pair<S, T>& s){
+    return getAtom(s.first);
+}
+template <class S, class T>
+auto getAtom(const std::pair<S, T>&& s){
+    return getAtom(s.first);
+}
 template <class S, class = typename std::remove_reference<S>::type::iterator>
 auto getAtom(S&& s){
     return getAtom(*s.begin());
@@ -122,7 +130,7 @@ auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::v
     if(t.empty()){ _print<out>(f, _Char{']'}); }
 }
 template<std::ostream& out, class F, class S, class T>
-void _print(F f, std::pair<S, T> p){
+void _print(F f, const std::pair<S, T> p){
     _print<out>(f, _Char{'{'}, p.first, _Char{','}, p.second, _Char{'}'});
 }
 template<std::ostream& out, class F, class H, class... T>
@@ -151,11 +159,11 @@ auto func(F f, S&& s, T&&... t) -> decltype(typename std::enable_if<sizeof...(T)
     func<out>(f, t...); \
 } \
 template<std::ostream& out = std::cout, class R, class S, class... T> \
-auto func(R&& r, S&& s, T... t) -> typename std::enable_if<!decltype(callable(r, cout, getAtom(s)))::value, void>::type{ \
+auto func(R&& r, S&& s, T... t) -> typename std::enable_if<!decltype(callable(r, out, getAtom(s)))::value, void>::type{ \
     func<out>([](std::ostream&, auto&& a){ out << a; }, r, s, t...); \
 } \
 template<std::ostream& out = std::cout, class R, class S> \
-auto func(R&& r, S&& s) -> typename std::enable_if<!decltype(callable(r, cout, getAtom(s)))::value, void>::type{ \
+auto func(R&& r, S&& s) -> typename std::enable_if<!decltype(callable(r, out, getAtom(s)))::value, void>::type{ \
     func<out>([](std::ostream&, auto&& a){ out << a; }, r, s); \
 } \
 template<std::ostream& out = std::cout, class R> \
@@ -214,6 +222,8 @@ void _test_print(){
     prints(olambda([](ostream& out, auto i){ out << i; }, [](ostream& out, char c){ out << '\'' << c << '\''; }), 1, 2, 3, 'c', "aaa", vv, mp, vvv);
     vector<_Elem> ve(3, {1, 2});
     prints([](ostream& out, _Elem e){out << e.x; }, ve);
+    set<pair<int, int>> sp = {{1, 2}};
+    prints(sp);
 
 }
 #endif
