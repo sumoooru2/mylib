@@ -1,15 +1,15 @@
 #pragma once
+#include<algorithm>
 #include<iostream>
-#include<vector>
 #include<list>
-#include<numeric>
 #include<map>
-#include<thread>
+#include<numeric>
+#include<numeric>
 #include<queue>
 #include<set>
+#include<thread>
 #include<valarray>
-#include<algorithm>
-#include<numeric>
+#include<vector>
 #define ALL(container) container.begin(), container.end()
 #define REV(container) container.rbegin(), container.rend()
 #define MAP(container, lambda) transform(ALL(container), container.begin(), lambda)
@@ -19,7 +19,7 @@
 #define FOR_ALL(container, lambda) std::for_each(container.begin(), container.end(), lambda)
 // using namespace std;
 
-#define DEBUG
+// #define DEBUG
 
 template <class... F>
 struct OLambda : F...{
@@ -174,6 +174,7 @@ void func(R&& r){ \
 _PRINT(printl, _Char{'\n'})
 _PRINT(printc, _Char{','})
 _PRINT(prints, _Char{' '})
+#define printd(var) prints(#var, var);
 
 // template<class T>
 // void info(T&& t){
@@ -224,6 +225,7 @@ void _test_print(){
     prints([](ostream& out, _Elem e){out << e.x; }, ve);
     set<pair<int, int>> sp = {{1, 2}};
     prints(sp);
+    printd(v.back());
 
 }
 #endif
