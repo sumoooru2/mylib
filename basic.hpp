@@ -19,7 +19,7 @@
 #define FOR_ALL(container, lambda) std::for_each(container.begin(), container.end(), lambda)
 // using namespace std;
 
-// #define DEBUG
+#define DEBUG
 
 template <class... F>
 struct OLambda : F...{
@@ -148,32 +148,35 @@ void print(T&&... t){
     print<out>([](std::ostream&, auto&& a){ out << a; }, t...);
 }
 
-#define _PRINT(func, suffix) \
-template<std::ostream& out = std::cout, class F, class S, class... T> \
-auto func(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){ \
-    _print<out>(f, s, _Char{'\n'}); \
-} \
-template<std::ostream& out = std::cout, class F, class S, class... T> \
-auto func(F f, S&& s, T&&... t) -> decltype(typename std::enable_if<sizeof...(T) != 0, void>::type(), f(out, getAtom(s)), void()){ \
-    _print<out>(f, s, suffix); \
-    func<out>(f, t...); \
-} \
-template<std::ostream& out = std::cout, class R, class S, class... T> \
-auto func(R&& r, S&& s, T... t) -> typename std::enable_if<!decltype(callable(r, out, getAtom(s)))::value, void>::type{ \
-    func<out>([](std::ostream&, auto&& a){ out << a; }, r, s, t...); \
-} \
-template<std::ostream& out = std::cout, class R, class S> \
-auto func(R&& r, S&& s) -> typename std::enable_if<!decltype(callable(r, out, getAtom(s)))::value, void>::type{ \
-    func<out>([](std::ostream&, auto&& a){ out << a; }, r, s); \
-} \
-template<std::ostream& out = std::cout, class R> \
-void func(R&& r){ \
-    func<out>([](std::ostream&, auto&& a){ out << a; }, r); \
-}
 
-_PRINT(printl, _Char{'\n'})
-_PRINT(printc, _Char{','})
-_PRINT(prints, _Char{' '})
+template<char suffix, std::ostream& out = std::cout, class F, class S, class... T>
+auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){
+    _print<out>(f, s, _Char{'\n'});
+}
+template<char suffix, std::ostream& out = std::cout, class F, class S, class... T>
+auto sprint(F f, S&& s, T&&... t) -> decltype(typename std::enable_if<sizeof...(T) != 0, void>::type(), f(out, getAtom(s)), void()){
+    _print<out>(f, s, _Char{suffix});
+    sprint<suffix, out>(f, t...);
+}
+template<char suffix, std::ostream& out = std::cout, class R, class S, class... T>
+auto sprint(R&& r, S&& s, T... t) -> typename std::enable_if<!decltype(callable(r, out, getAtom(s)))::value, void>::type{
+    sprint<suffix, out>([](std::ostream&, auto&& a){ out << a; }, r, s, t...);
+}
+template<char suffix, std::ostream& out = std::cout, class R, class S>
+auto sprint(R&& r, S&& s) -> typename std::enable_if<!decltype(callable(r, out, getAtom(s)))::value, void>::type{
+    sprint<suffix, out>([](std::ostream&, auto&& a){ out << a; }, r, s);
+}
+template<char suffix, std::ostream& out = std::cout, class R>
+void sprint(R&& r){
+    sprint<suffix, out>([](std::ostream&, auto&& a){ out << a; }, r);
+}
+//TODO forward
+template<std::ostream& out = std::cout, class... F>
+void printl(F&&... f){ sprint<'\n', out>(std::forward<F>(f)...); }
+template<std::ostream& out = std::cout, class... F>
+void printc(F&&... f){ sprint<',', out>(std::forward<F>(f)...); }
+template<std::ostream& out = std::cout, class... F>
+void prints(F&&... f){ sprint<' ', out>(std::forward<F>(f)...); }
 #define printd(var) prints(#var, var);
 
 // template<class T>
