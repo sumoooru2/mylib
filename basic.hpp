@@ -49,7 +49,7 @@ struct _OLambda<S, T, U> : S, T, U{
     using U::operator();
 };
 
-template<class T>
+template <class T>
 struct _Raw{
     T t;
 };
@@ -77,103 +77,79 @@ _String _getColor2(int nest){
 #endif
 }
 
-template<class T, class = typename T::iterator>
+template <class T, class = typename T::iterator>
 std::true_type iterable(T);
 std::false_type iterable(...);
 
-template<std::ostream& out, class T>
+template <std::ostream& out, class T>
 auto outable(T t) -> decltype(out << t, std::true_type());
-template<std::ostream&>
+template <std::ostream&>
 std::false_type outable(...);
 
-template<class F, class T>
+template <class F, class T>
 auto callable(F f, T t) -> decltype(f(t), std::true_type());
-template<class F, class S, class T>
+template <class F, class S, class T>
 auto callable(F f, S s, T t) -> decltype(f(s, t), std::true_type());
 std::false_type callable(...);
+
+template <class S, class T>
+std::true_type is_pair(pair<S, T>);
+std::false_type is_pair(...);
 
 template <class S, class = typename std::remove_reference<S>::type::iterator>
 auto getAtom(S&& s);
 
-template<class T>
+template <class S>
+auto getAtom(S&& s) -> typename std::enable_if_t<!decltype(is_pair(s))::value && !decltype(iterable(s))::value, S>{
+    return s;
+}
+template <class S>
+auto getAtom(S&& s) -> typename std::enable_if_t<decltype(is_pair(s))::value, decltype(getAtom(s.first))>{
+    return getAtom(s.first);
+}
+template <class T>
 char getAtom(_Raw<T>& c){
     return c.t;
 }
-template<class T>
+template <class T>
 char getAtom(_Raw<T>&& c){
     return c.t;
 }
-template <class S>
-auto getAtom(S&& s) -> typename std::enable_if<!decltype(iterable(s))::value, S>::type{
-    return s;
-}
-template <class S, class T>
-auto getAtom(std::pair<S, T>& s){
-    return getAtom(s.first);
-}
-template <class S, class T>
-auto getAtom(std::pair<S, T>&& s){
-    return getAtom(s.first);
-}
-template <class S, class T>
-auto getAtom(const std::pair<S, T>& s){
-    return getAtom(s.first);
-}
-template <class S, class T>
-auto getAtom(const std::pair<S, T>&& s){
-    return getAtom(s.first);
-}
 template <class S, class>
+// auto getAtom(S&& s) -> typename std::enable_if_t<!decltype(is_pair(s))::value, decltype(*s.begin())>{
 auto getAtom(S&& s){
     return getAtom(*s.begin());
 }
 
 
-template<std::ostream& out, class F, class H, class... T>
+template <std::ostream& out, class F, class H, class... T>
 void _print(F f, H&& h, T&&... t);
 
-template<std::ostream& out, class F, class S, class T>
+template <std::ostream& out, class F, class S, class T>
 auto _printc(F f, S&& color, T&& t){
     _print<out>(f, color, _Raw<T>{t}, _reset);
 }
 
-// #define _pp(type) \
-// template<std::ostream& out, class F, class S, class T> \
-// void _print(F f, type p){ \
-//     _print<out>(f, _Char{'{'}, p.first, _Char{','}, p.second, _Char{'}'}); \
-// }
-template<std::ostream& out, class F, class S, class T>
-void _print(F f, std::pair<S, T>& p){
-    _print<out>(f, _Char{'{'}, p.first, _Char{','}, p.second, _Char{'}'});
+template <std::ostream& out, class F, class T>
+auto _print(F f, T&& t) -> typename std::enable_if_t<decltype(is_pair(t))::value, void>{
+    _print<out>(f, _Char{'{'}, t.first, _Char{','}, t.second, _Char{'}'});
 }
-template<std::ostream& out, class F, class S, class T>
-void _print(F f, std::pair<S, T>&& p){
-    _print<out>(f, _Char{'{'}, p.first, _Char{','}, p.second, _Char{'}'});
-}
-template<std::ostream& out, class F, class S, class T>
-void _print(F f, const std::pair<S, T>& p){
-    _print<out>(f, _Char{'{'}, p.first, _Char{','}, p.second, _Char{'}'});
-}
-template<std::ostream& out, class F, class S, class T>
-void _print(F f, const std::pair<S, T>&& p){
-    _print<out>(f, _Char{'{'}, p.first, _Char{','}, p.second, _Char{'}'});
-}
-template<std::ostream& out, class F, class T>
-auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::value && !decltype(iterable(t))::value, void>::type{
+template <std::ostream& out, class F, class T>
+auto _print(F f, T&& t) -> typename std::enable_if_t<!decltype(is_pair(t))::value && !decltype(outable<out>(t))::value && !decltype(iterable(t))::value, void>{
     f(out, t);
 }
-template<std::ostream& out, class F, class T>
-auto _print(F f, T&& t) -> typename std::enable_if<decltype(outable<out>(t))::value, void>::type{
-// // auto _print(F f, T&& t) -> typename std::enable_if<decltype(callable(f, out, t))::value, void>::type{}
+template <std::ostream& out, class F, class T>
+auto _print(F f, T&& t) -> typename std::enable_if_t<decltype(outable<out>(t))::value, void>{
+// // auto _print(F f, T&& t) -> typename std::enable_if_t<decltype(callable(f, out, t))::value, void>{}
 // auto _print(F f, T&& t) -> decltype(f(out, t), void()){}
     f(out, t);
 }
-template<std::ostream& out, class F, class T>
+template <std::ostream& out, class F, class T>
 void _print(F, _Raw<T> r){
     out << r.t;
 }
-template<std::ostream& out, class F, class T>
-auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::value && !decltype(iterable(*t.begin()))::value, void>::type{
+template <std::ostream& out, class F, class T>
+auto _print(F f, T&& t) -> typename std::enable_if_t<!decltype(outable<out>(t))::value && !decltype(iterable(*t.begin()))::value, void>{
     // _print<out>(f, _Char{'['});
     // auto color = _getColor(true);
     int nest = _getNestCnt(true);
@@ -192,12 +168,14 @@ auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::v
     color = _getColor2(nest);
     if(t.empty()){ _printc<out>(f, color, ']'); }
 }
-template<std::ostream& out, class F, class T>
-auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::value && decltype(iterable(*t.begin()))::value, void>::type{
+template <std::ostream& out, class F, class T>
+auto _print(F f, T&& t) -> typename std::enable_if_t<!decltype(outable<out>(t))::value && decltype(iterable(*t.begin()))::value, void>{
     int nest = _getNestCnt(true);
     auto color = _getColor2(nest);
     // auto color = _getColor(true);
-    _print<out>(f, color, _Char{'['}, _reset, _Char{'\n'});
+    _printc<out>(f, color, '[');
+    if(ELEMLIMIT == 0){ _print<out>(f, _Char{'\n'}); }
+    // _print<out>(f, color, _Char{'['}, _reset, _Char{'\n'});
     // _printc<out>(f, color, '[');
     // _printc<out>(f, color, "\n[");
     // _print<out>(f, _String{t.size() > ELEMLIMIT ? "	" : ""});
@@ -212,7 +190,7 @@ auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::v
     // color = _getColor(false);
     if(t.empty()){ _printc<out>(f, color, ']'); }
 }
-template<std::ostream& out, class F, class H, class... T>
+template <std::ostream& out, class F, class H, class... T>
 void _print(F f, H&& h, T&&... t){
     _print<out>(f, h);
     _print<out>(f, t...);
@@ -220,7 +198,7 @@ void _print(F f, H&& h, T&&... t){
 
 //--------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------
-template<std::ostream& out, class... A>
+template <std::ostream& out, class... A>
 void printHook(A... args){
     // _getColor(true);
     _print<out>(std::forward<A>(args)...);
@@ -228,58 +206,58 @@ void printHook(A... args){
 //--------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------
 
-template<std::ostream& out = std::cout, class F, class S, class... T>
+template <std::ostream& out = std::cout, class F, class S, class... T>
 // auto print(F f, S&& s, T&&... t) -> decltype(out << getAtom(s), void()){
 auto print(F f, S&& s, T&&... t) -> decltype(f(out, getAtom(s)), void()){
     printHook<out>(f, s, t...);
 }
-template<std::ostream& out = std::cout, class... T>
+template <std::ostream& out = std::cout, class... T>
 void print(T&&... t){
     print<out>([](std::ostream&, auto&& a){ out << a; }, t...);
 }
 
 
-template<char suffix, std::ostream& out = std::cout, class F, class S, class... T>
+template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
 auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){
     printHook<out>(f, s, _Char{'\n'});
 }
-template<char suffix, std::ostream& out = std::cout, class F, class S, class... T>
-auto sprint(F f, S&& s, T&&... t) -> decltype(typename std::enable_if<sizeof...(T) != 0, void>::type(), f(out, getAtom(s)), void()){
+template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
+auto sprint(F f, S&& s, T&&... t) -> decltype(typename std::enable_if_t<sizeof...(T) != 0, void>(), f(out, getAtom(s)), void()){
     printHook<out>(f, s, _Char{suffix});
     sprint<suffix, out>(f, t...);
 }
-template<char suffix, std::ostream& out = std::cout, class R, class S, class... T>
-auto sprint(R&& r, S&& s, T... t) -> typename std::enable_if<!decltype(callable(r, out, getAtom(s)))::value, void>::type{
+template <char suffix, std::ostream& out = std::cout, class R, class S, class... T>
+auto sprint(R&& r, S&& s, T... t) -> typename std::enable_if_t<!decltype(callable(r, out, getAtom(s)))::value, void>{
     sprint<suffix, out>([](std::ostream&, auto&& a){ out << a; }, r, s, t...);
 }
-template<char suffix, std::ostream& out = std::cout, class R, class S>
-auto sprint(R&& r, S&& s) -> typename std::enable_if<!decltype(callable(r, out, getAtom(s)))::value, void>::type{
+template <char suffix, std::ostream& out = std::cout, class R, class S>
+auto sprint(R&& r, S&& s) -> typename std::enable_if_t<!decltype(callable(r, out, getAtom(s)))::value, void>{
     sprint<suffix, out>([](std::ostream&, auto&& a){ out << a; }, r, s);
 }
-template<char suffix, std::ostream& out = std::cout, class R>
+template <char suffix, std::ostream& out = std::cout, class R>
 void sprint(R&& r){
     sprint<suffix, out>([](std::ostream&, auto&& a){ out << a; }, r);
 }
 //TODO forward
-template<std::ostream& out = std::cout, class... F>
+template <std::ostream& out = std::cout, class... F>
 void printl(F&&... f){ sprint<'\n', out>(std::forward<F>(f)...); }
-template<std::ostream& out = std::cout, class... F>
+template <std::ostream& out = std::cout, class... F>
 void printc(F&&... f){ sprint<',', out>(std::forward<F>(f)...); }
-template<std::ostream& out = std::cout, class... F>
+template <std::ostream& out = std::cout, class... F>
 void prints(F&&... f){ sprint<' ', out>(std::forward<F>(f)...); }
 #define printd(var) prints(#var, var);
 
-template<std::ostream& out = std::cout, class T, class... F>
+template <std::ostream& out = std::cout, class T, class... F>
 void printPtr(T* base, F&&... f){
     prints<out>(olambda([](std::ostream& out_, auto a){ out_ << a;}, [base](std::ostream& out_, T* p){ out_ << p - base; }), std::forward<F>(f)...);
 }
 
-// template<class T>
+// template <class T>
 // void info(T&& t){
 //     print("type ", typeid(t).name(), '\n');
 //     print(t, '\n');
 // }
-// template<class H, class... T>
+// template <class H, class... T>
 // void info(H&& h, T&&... t){
 //     info(h);
 //     info(t...);
