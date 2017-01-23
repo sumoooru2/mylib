@@ -50,9 +50,12 @@ auto olambda(S... s){
     return OLambda<S...>(s...);
 }
 
-struct _Char{
-    char c;
+template<class T>
+struct _Raw{
+    T t;
 };
+
+using _Char = _Raw<char>;
 
 
 template<class T, class = typename T::iterator>
@@ -71,6 +74,14 @@ auto callable(F f, S s, T t) -> decltype(f(s, t), std::true_type());
 std::false_type callable(...);
 
 
+template<class T>
+char getAtom(_Raw<T>& c){
+    return c.t;
+}
+template<class T>
+char getAtom(_Raw<T>&& c){
+    return c.t;
+}
 template <class S>
 auto getAtom(S&& s) -> typename std::enable_if<!decltype(iterable(s))::value, S>::type{
     return s;
@@ -110,8 +121,12 @@ auto _print(F f, T&& t) -> typename std::enable_if<decltype(outable<out>(t))::va
     f(out, t);
 }
 template<std::ostream& out, class F>
-void _print(F, _Char t){
-    out << t.c;
+void _print(F, _Char c){
+    out << c.t;
+}
+template<std::ostream& out, class F, class T>
+void _print(F, _Raw<T> r){
+    out << r.t;
 }
 template<std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::value && !decltype(iterable(*t.begin()))::value, void>::type{
@@ -123,9 +138,9 @@ auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::v
 }
 template<std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::value && decltype(iterable(*t.begin()))::value, void>::type{
-    _print<out>(f, _Char{'['});
+    _print<out>(f, _Raw<const char*>{t.size() > 10 ? "[	" : "["});
     for(auto& elem : t){
-        _print<out>(f, elem, _Char{&elem == &*t.rbegin() ? ']' : t.size() > 10 ? '\n' : ' '});
+        _print<out>(f, elem, _Raw<const char*>{&elem == &*t.rbegin() ? "]" : t.size() > 10 ? "\n	" : " "});
     }
     if(t.empty()){ _print<out>(f, _Char{']'}); }
 }
@@ -140,6 +155,7 @@ void _print(F f, H&& h, T&&... t){
 }
 
 template<std::ostream& out = std::cout, class F, class S, class... T>
+// auto print(F f, S&& s, T&&... t) -> decltype(out << getAtom(s), void()){
 auto print(F f, S&& s, T&&... t) -> decltype(f(out, getAtom(s)), void()){
     _print<out>(f, s, t...);
 }
@@ -179,6 +195,11 @@ template<std::ostream& out = std::cout, class... F>
 void prints(F&&... f){ sprint<' ', out>(std::forward<F>(f)...); }
 #define printd(var) prints(#var, var);
 
+template<std::ostream& out = std::cout, class T, class... F>
+void printPtr(T* base, F&&... f){
+    prints<out>(olambda([](std::ostream& out_, auto a){ out_ << a;}, [base](std::ostream& out_, T* p){ out_ << p - base; }), std::forward<F>(f)...);
+}
+
 // template<class T>
 // void info(T&& t){
 //     print("type ", typeid(t).name(), '\n');
@@ -194,7 +215,7 @@ void prints(F&&... f){ sprint<' ', out>(std::forward<F>(f)...); }
 struct _Elem{
     int x, y;
 };
-void _test_print(){
+inline void _test_print(){
     using namespace std;
     string s = "abc";
     vector<int> v = {1, 2, 3};
@@ -229,6 +250,15 @@ void _test_print(){
     set<pair<int, int>> sp = {{1, 2}};
     prints(sp);
     printd(v.back());
+    vector<int> v2(20);
+    iota(v2.begin(), v2.end(), 10);
+    prints(v2);
+    vector<vector<int>> v3(11, vector<int> (11));
+    prints(v3);
+    prints(getAtom(_Char{'a'}));
+    prints(_Char{'a'});
+    prints(_Raw<int>{1});
+    // prints(decltype(outable<std::cout>([](auto a){;}))::value);
 
 }
 #endif
