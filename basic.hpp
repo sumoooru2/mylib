@@ -19,36 +19,35 @@
 #define FOR_ALL(container, lambda) std::for_each(container.begin(), container.end(), lambda)
 // using namespace std;
 
+//TODO _ -> namespace
+
 #define DEBUG
+#define USECOLOR
+#define ELEMLIMIT 0 //10
 
 template <class... F>
-struct OLambda : F...{
-    OLambda(F... f): F(f)...{ }
+struct _OLambda : F...{
+    _OLambda(F... f): F(f)...{ }
 };
 //for gcc
 template <class S>
-struct OLambda<S> : S{
-    OLambda(S s): S(s){ }
+struct _OLambda<S> : S{
+    _OLambda(S s): S(s){ }
     using S::operator();
 };
 template <class S, class T>
-struct OLambda<S, T> : S, T{
-    OLambda(S s, T t): S(s), T(t){ }
+struct _OLambda<S, T> : S, T{
+    _OLambda(S s, T t): S(s), T(t){ }
     using S::operator();
     using T::operator();
 };
 template <class S, class T, class U>
-struct OLambda<S, T, U> : S, T, U{
-    OLambda(S s, T t, U u): S(s), T(t), U(u){ }
+struct _OLambda<S, T, U> : S, T, U{
+    _OLambda(S s, T t, U u): S(s), T(t), U(u){ }
     using S::operator();
     using T::operator();
     using U::operator();
 };
-
-template <class... S>
-auto olambda(S... s){
-    return OLambda<S...>(s...);
-}
 
 template<class T>
 struct _Raw{
@@ -56,7 +55,27 @@ struct _Raw{
 };
 
 using _Char = _Raw<char>;
+using _String = _Raw<const char*>;
 
+template <class... S>
+auto olambda(S... s){
+    return _OLambda<S...>(s...);
+}
+
+int _getNestCnt(bool inc, int len = 1e9){
+    static int cnt = 0;
+    return inc ? cnt++ % len : (len + --cnt) % len;
+}
+constexpr _String _reset{"\e[00m"};
+_String _getColor2(int nest){
+#ifdef USECOLOR
+    const int colorLen = 6;
+    static _String colors[colorLen] = {{"\e[36m"}, {"\e[42m"},{"\e[41m"},{"\e[45m"},{"\e[43m"}, {"\e[46m"}};
+    return colors[nest % colorLen];
+#else
+    return _reset;
+#endif
+}
 
 template<class T, class = typename T::iterator>
 std::true_type iterable(T);
@@ -73,6 +92,8 @@ template<class F, class S, class T>
 auto callable(F f, S s, T t) -> decltype(f(s, t), std::true_type());
 std::false_type callable(...);
 
+template <class S, class = typename std::remove_reference<S>::type::iterator>
+auto getAtom(S&& s);
 
 template<class T>
 char getAtom(_Raw<T>& c){
@@ -102,7 +123,7 @@ template <class S, class T>
 auto getAtom(const std::pair<S, T>&& s){
     return getAtom(s.first);
 }
-template <class S, class = typename std::remove_reference<S>::type::iterator>
+template <class S, class>
 auto getAtom(S&& s){
     return getAtom(*s.begin());
 }
@@ -110,19 +131,42 @@ auto getAtom(S&& s){
 
 template<std::ostream& out, class F, class H, class... T>
 void _print(F f, H&& h, T&&... t);
+
+template<std::ostream& out, class F, class S, class T>
+auto _printc(F f, S&& color, T&& t){
+    _print<out>(f, color, _Raw<T>{t}, _reset);
+}
+
+// #define _pp(type) \
+// template<std::ostream& out, class F, class S, class T> \
+// void _print(F f, type p){ \
+//     _print<out>(f, _Char{'{'}, p.first, _Char{','}, p.second, _Char{'}'}); \
+// }
+template<std::ostream& out, class F, class S, class T>
+void _print(F f, std::pair<S, T>& p){
+    _print<out>(f, _Char{'{'}, p.first, _Char{','}, p.second, _Char{'}'});
+}
+template<std::ostream& out, class F, class S, class T>
+void _print(F f, std::pair<S, T>&& p){
+    _print<out>(f, _Char{'{'}, p.first, _Char{','}, p.second, _Char{'}'});
+}
+template<std::ostream& out, class F, class S, class T>
+void _print(F f, const std::pair<S, T>& p){
+    _print<out>(f, _Char{'{'}, p.first, _Char{','}, p.second, _Char{'}'});
+}
+template<std::ostream& out, class F, class S, class T>
+void _print(F f, const std::pair<S, T>&& p){
+    _print<out>(f, _Char{'{'}, p.first, _Char{','}, p.second, _Char{'}'});
+}
 template<std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::value && !decltype(iterable(t))::value, void>::type{
     f(out, t);
 }
 template<std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if<decltype(outable<out>(t))::value, void>::type{
-// // auto _print(F f, T&& t) -> typename std::enable_if<decltype(callable(f, out, t))::value, void>::type{
-// auto _print(F f, T&& t) -> decltype(f(out, t), void()){
+// // auto _print(F f, T&& t) -> typename std::enable_if<decltype(callable(f, out, t))::value, void>::type{}
+// auto _print(F f, T&& t) -> decltype(f(out, t), void()){}
     f(out, t);
-}
-template<std::ostream& out, class F>
-void _print(F, _Char c){
-    out << c.t;
 }
 template<std::ostream& out, class F, class T>
 void _print(F, _Raw<T> r){
@@ -130,23 +174,43 @@ void _print(F, _Raw<T> r){
 }
 template<std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::value && !decltype(iterable(*t.begin()))::value, void>::type{
-    _print<out>(f, _Char{'['});
+    // _print<out>(f, _Char{'['});
+    // auto color = _getColor(true);
+    int nest = _getNestCnt(true);
+    auto color = _getColor2(nest);
+    _printc<out>(f, color, '[');
     for(auto& elem : t){
-        _print<out>(f, elem, _Char{&elem == &*t.rbegin() ? ']' : ' '});
+        // _print<out>(f, elem, _Char{&elem == &*t.rbegin() ? ']' : ' '});
+        // for(int i=0;i<nest;i++){ _print<out>(f, _String{t.size() > ELEMLIMIT ? "	" : ""}); }
+        _print<out>(f, elem);
+        // _print<out>(f, elem, _Char{'a'});
+        if(&elem == &*t.rbegin()){ _printc<out>(f, color, ']'); }else{ _print<out>(f, _Char{' '}); }
     }
-    if(t.empty()){ _print<out>(f, _Char{']'}); }
+    // if(t.empty()){ _print<out>(f, _Char{']'}); }
+    // color = _getColor(false);
+    nest = _getNestCnt(false);
+    color = _getColor2(nest);
+    if(t.empty()){ _printc<out>(f, color, ']'); }
 }
 template<std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if<!decltype(outable<out>(t))::value && decltype(iterable(*t.begin()))::value, void>::type{
-    _print<out>(f, _Raw<const char*>{t.size() > 10 ? "[	" : "["});
+    int nest = _getNestCnt(true);
+    auto color = _getColor2(nest);
+    // auto color = _getColor(true);
+    _print<out>(f, color, _Char{'['}, _reset, _Char{'\n'});
+    // _printc<out>(f, color, '[');
+    // _printc<out>(f, color, "\n[");
+    // _print<out>(f, _String{t.size() > ELEMLIMIT ? "	" : ""});
     for(auto& elem : t){
-        _print<out>(f, elem, _Raw<const char*>{&elem == &*t.rbegin() ? "]" : t.size() > 10 ? "\n	" : " "});
+        for(int i=0;i<=nest;i++){ _print<out>(f, _String{t.size() > ELEMLIMIT ? "	" : ""}); }
+        _print<out>(f, elem);
+        if(&elem == &*t.rbegin()){ _printc<out>(f, color, ']'); }else{ _print<out>(f, _String{t.size() > ELEMLIMIT ? "\n" : " "}); }
     }
-    if(t.empty()){ _print<out>(f, _Char{']'}); }
-}
-template<std::ostream& out, class F, class S, class T>
-void _print(F f, const std::pair<S, T> p){
-    _print<out>(f, _Char{'{'}, p.first, _Char{','}, p.second, _Char{'}'});
+    // if(t.empty()){ _print<out>(f, color, _Char{']'}, _reset); }
+    nest = _getNestCnt(false);
+    color = _getColor2(nest);
+    // color = _getColor(false);
+    if(t.empty()){ _printc<out>(f, color, ']'); }
 }
 template<std::ostream& out, class F, class H, class... T>
 void _print(F f, H&& h, T&&... t){
@@ -154,10 +218,20 @@ void _print(F f, H&& h, T&&... t){
     _print<out>(f, t...);
 }
 
+//--------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
+template<std::ostream& out, class... A>
+void printHook(A... args){
+    // _getColor(true);
+    _print<out>(std::forward<A>(args)...);
+}
+//--------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
+
 template<std::ostream& out = std::cout, class F, class S, class... T>
 // auto print(F f, S&& s, T&&... t) -> decltype(out << getAtom(s), void()){
 auto print(F f, S&& s, T&&... t) -> decltype(f(out, getAtom(s)), void()){
-    _print<out>(f, s, t...);
+    printHook<out>(f, s, t...);
 }
 template<std::ostream& out = std::cout, class... T>
 void print(T&&... t){
@@ -167,11 +241,11 @@ void print(T&&... t){
 
 template<char suffix, std::ostream& out = std::cout, class F, class S, class... T>
 auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){
-    _print<out>(f, s, _Char{'\n'});
+    printHook<out>(f, s, _Char{'\n'});
 }
 template<char suffix, std::ostream& out = std::cout, class F, class S, class... T>
 auto sprint(F f, S&& s, T&&... t) -> decltype(typename std::enable_if<sizeof...(T) != 0, void>::type(), f(out, getAtom(s)), void()){
-    _print<out>(f, s, _Char{suffix});
+    printHook<out>(f, s, _Char{suffix});
     sprint<suffix, out>(f, t...);
 }
 template<char suffix, std::ostream& out = std::cout, class R, class S, class... T>
@@ -222,8 +296,14 @@ inline void _test_print(){
     vector<int*> vp = {&v[0], &v[1], &v[2]};
     vector<vector<int>> vv(3, v);
     vector<vector<vector<int>>> vvv(3, vv);
+    vector<vector<vector<vector<int>>>> v4(3, vvv);
+    //TODO
+    // vector<vector<vector<vector<vector<int>>>>> v5(3, v4);
     map<int, int> mp = {{1, 2}, {4, 5}};
+    auto pvm = make_pair(vv, mp);
+    set<decltype(pvm)> spvm{pvm};
     print(1);
+    print(vector<int>());
     print(1, 'a', v, vp, vv, vvv, mp);
     print([](ostream& out, auto i){ out << i; }, 1, 'a', "aiueo", v, vv, mp);
     cout<<endl;
@@ -235,13 +315,17 @@ inline void _test_print(){
     cout<<endl;
     print([](ostream& out, auto i){ out << *i; }, vp);
     cout<<endl;
-    print(mp);
+    prints(v4);
+    // prints(v5);
+    prints(mp);
+    prints(pvm);
+    prints(spvm);
     printl(getAtom(mp));
     printl(getAtom(*mp.begin()));
     pair<int , char> p{1, 'a'};
     printl(p);
     printl(getAtom(p));
-    printl(1, 2, 3, 'a', "aaa", vv, mp, vvv);
+    printl(1, 2, "aaa", vv, mp);
     printc(1, 2, 3, 'b', "aaa", vv, mp, vvv);
     prints(1, 2, 3, 'c', "aaa", vv, mp, vvv);
     prints(olambda([](ostream& out, auto i){ out << i; }, [](ostream& out, char c){ out << '\'' << c << '\''; }), 1, 2, 3, 'c', "aaa", vv, mp, vvv);
