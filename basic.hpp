@@ -67,7 +67,7 @@ int _getNestCnt(bool inc, int len = 1e9){
     return inc ? cnt++ % len : (len + --cnt) % len;
 }
 constexpr _String _reset{"\e[00m"};
-_String _getColor2(int nest){
+_String _getColor(int nest){
 #ifdef USECOLOR
     const int colorLen = 6;
     static _String colors[colorLen] = {{"\e[36m"}, {"\e[42m"},{"\e[41m"},{"\e[45m"},{"\e[43m"}, {"\e[46m"}};
@@ -116,7 +116,6 @@ char getAtom(_Raw<T>&& c){
     return c.t;
 }
 template <class S, class>
-// auto getAtom(S&& s) -> typename std::enable_if_t<!decltype(is_pair(s))::value, decltype(*s.begin())>{
 auto getAtom(S&& s){
     return getAtom(*s.begin());
 }
@@ -140,8 +139,6 @@ auto _print(F f, T&& t) -> typename std::enable_if_t<!decltype(is_pair(t))::valu
 }
 template <std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if_t<decltype(outable<out>(t))::value, void>{
-// // auto _print(F f, T&& t) -> typename std::enable_if_t<decltype(callable(f, out, t))::value, void>{}
-// auto _print(F f, T&& t) -> decltype(f(out, t), void()){}
     f(out, t);
 }
 template <std::ostream& out, class F, class T>
@@ -150,44 +147,30 @@ void _print(F, _Raw<T> r){
 }
 template <std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if_t<!decltype(outable<out>(t))::value && !decltype(iterable(*t.begin()))::value, void>{
-    // _print<out>(f, _Char{'['});
-    // auto color = _getColor(true);
     int nest = _getNestCnt(true);
-    auto color = _getColor2(nest);
+    auto color = _getColor(nest);
     _printc<out>(f, color, '[');
     for(auto& elem : t){
-        // _print<out>(f, elem, _Char{&elem == &*t.rbegin() ? ']' : ' '});
-        // for(int i=0;i<nest;i++){ _print<out>(f, _String{t.size() > ELEMLIMIT ? "	" : ""}); }
         _print<out>(f, elem);
-        // _print<out>(f, elem, _Char{'a'});
         if(&elem == &*t.rbegin()){ _printc<out>(f, color, ']'); }else{ _print<out>(f, _Char{' '}); }
     }
-    // if(t.empty()){ _print<out>(f, _Char{']'}); }
-    // color = _getColor(false);
     nest = _getNestCnt(false);
-    color = _getColor2(nest);
+    color = _getColor(nest);
     if(t.empty()){ _printc<out>(f, color, ']'); }
 }
 template <std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if_t<!decltype(outable<out>(t))::value && decltype(iterable(*t.begin()))::value, void>{
     int nest = _getNestCnt(true);
-    auto color = _getColor2(nest);
-    // auto color = _getColor(true);
+    auto color = _getColor(nest);
     _printc<out>(f, color, '[');
     if(ELEMLIMIT == 0){ _print<out>(f, _Char{'\n'}); }
-    // _print<out>(f, color, _Char{'['}, _reset, _Char{'\n'});
-    // _printc<out>(f, color, '[');
-    // _printc<out>(f, color, "\n[");
-    // _print<out>(f, _String{t.size() > ELEMLIMIT ? "	" : ""});
     for(auto& elem : t){
         for(int i=0;i<=nest;i++){ _print<out>(f, _String{t.size() > ELEMLIMIT ? "	" : ""}); }
         _print<out>(f, elem);
         if(&elem == &*t.rbegin()){ _printc<out>(f, color, ']'); }else{ _print<out>(f, _String{t.size() > ELEMLIMIT ? "\n" : " "}); }
     }
-    // if(t.empty()){ _print<out>(f, color, _Char{']'}, _reset); }
     nest = _getNestCnt(false);
-    color = _getColor2(nest);
-    // color = _getColor(false);
+    color = _getColor(nest);
     if(t.empty()){ _printc<out>(f, color, ']'); }
 }
 template <std::ostream& out, class F, class H, class... T>
@@ -200,14 +183,12 @@ void _print(F f, H&& h, T&&... t){
 //--------------------------------------------------------------------------------
 template <std::ostream& out, class... A>
 void printHook(A... args){
-    // _getColor(true);
     _print<out>(std::forward<A>(args)...);
 }
 //--------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------
 
 template <std::ostream& out = std::cout, class F, class S, class... T>
-// auto print(F f, S&& s, T&&... t) -> decltype(out << getAtom(s), void()){
 auto print(F f, S&& s, T&&... t) -> decltype(f(out, getAtom(s)), void()){
     printHook<out>(f, s, t...);
 }
