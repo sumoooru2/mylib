@@ -2,18 +2,21 @@
 #include<iostream>
 #include<vector>
 
-
-//TODO namespace
-//TODO divide file
-
+namespace rprint{
 
 //params
-#define DEBUG
-#define USECOLOR
-#define ELEMLIMIT 0 //10
+#ifndef RP_CUSTOM
+#define RP_DEBUG
+#define RP_USECOLOR
+#define RP_WITHOUTNS
+#endif
+
+#ifndef RP_ELEMLIMIT
+#define RP_ELEMLIMIT 0 //10
+#endif
 
 //helpers
-#define atov(vec) _atov(_elems(sizeof(vec), vec), vec)
+#define atov(vec) rprint::_atov(rprint::elems(sizeof(vec), vec), vec)
 template <class... S>
 auto olambda(S... s);
 
@@ -26,28 +29,33 @@ template <std::ostream& out = std::cout, class... F>
 void prints(F&&... f);
 #define printd(var) prints(#var, var);
 
+#ifdef RP_DEBUG
+inline void testPrint();
+#endif
+
+
 //--------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------
 
 template <class... F>
-struct _OLambda : F...{
-    _OLambda(F... f): F(f)...{ }
+struct OLambda : F...{
+    OLambda(F... f): F(f)...{ }
 };
 //for gcc
 template <class S>
-struct _OLambda<S> : S{
-    _OLambda(S s): S(s){ }
+struct OLambda<S> : S{
+    OLambda(S s): S(s){ }
     using S::operator();
 };
 template <class S, class T>
-struct _OLambda<S, T> : S, T{
-    _OLambda(S s, T t): S(s), T(t){ }
+struct OLambda<S, T> : S, T{
+    OLambda(S s, T t): S(s), T(t){ }
     using S::operator();
     using T::operator();
 };
 template <class S, class T, class U>
-struct _OLambda<S, T, U> : S, T, U{
-    _OLambda(S s, T t, U u): S(s), T(t), U(u){ }
+struct OLambda<S, T, U> : S, T, U{
+    OLambda(S s, T t, U u): S(s), T(t), U(u){ }
     using S::operator();
     using T::operator();
     using U::operator();
@@ -63,21 +71,22 @@ using _String = _Raw<const char*>;
 
 template <class... S>
 auto olambda(S... s){
-    return _OLambda<S...>(s...);
+    return OLambda<S...>(s...);
 }
 
-int _getNestCnt(bool inc, int len = 1e9){
+int getNestCnt(bool inc, int len = 1e9){
     static int cnt = 0;
     return inc ? cnt++ % len : (len + --cnt) % len;
 }
 constexpr _String _reset{"\e[00m"};
-_String _getColor(int nest){
-#ifdef USECOLOR
+_String getColor(int nest){
+#ifdef RP_USECOLOR
     const int colorLen = 6;
     // static _String colors[colorLen] = {{"\e[36m"}, {"\e[42m"},{"\e[41m"},{"\e[45m"},{"\e[43m"}, {"\e[46m"}};
     static _String colors[colorLen] = {{"\e[36m"}, {"\e[32m"},{"\e[31m"},{"\e[35m"},{"\e[33m"}, {"\e[36m"}};
     return colors[nest % colorLen];
 #else
+#pragma unused(nest)
     return _reset;
 #endif
 }
@@ -171,11 +180,11 @@ auto _print(F f, T&& t) -> typename std::enable_if_t<decltype(isPair(t))::value>
 }
 template <std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if_t<!decltype(outable<out>(t))::value && decltype(iterable(t))::value>{
-    bool bottom = !decltype(iterable(*t.begin()))::value, nestPrint = !bottom && ELEMLIMIT < t.size();
-    int nest = _getNestCnt(true);
-    auto color = _getColor(nest);
+    bool bottom = !decltype(iterable(*t.begin()))::value, nestPrint = !bottom && RP_ELEMLIMIT < t.size();
+    int nest = getNestCnt(true);
+    auto color = getColor(nest);
     _printc<out>(f, color, '[');
-    if(!bottom && ELEMLIMIT == 0){ _print<out>(f, _Char{'\n'}); }
+    if(!bottom && RP_ELEMLIMIT == 0){ _print<out>(f, _Char{'\n'}); }
     for(auto& elem : t){
         if(nestPrint){
             for(int i=0;i<=nest;i++){ _print<out>(f, _String{"	"}); }
@@ -188,7 +197,7 @@ auto _print(F f, T&& t) -> typename std::enable_if_t<!decltype(outable<out>(t)):
         }
     }
     if(t.empty()){ _printc<out>(f, color, ']'); }
-    _getNestCnt(false);
+    getNestCnt(false);
 }
 template <std::ostream& out, class F, class H, class... T>
 auto _print(F f, H&& h, T&&... t) -> std::enable_if_t<sizeof...(T) != 0>{
@@ -262,15 +271,15 @@ void printPtr(T* base, F&&... f){
 // }
 
 
-template < class T, int S>
-int _elems(int size, T (*)[S]){
+template <class T, int S>
+int elems(int size, T (*)[S]){
     return size / sizeof(T) / S;
 }
-template < class T>
+template <class T>
 auto _atov(int size, T (*arr)){
     return std::vector<T>(arr, arr + size);
 }
-template < class T, int S>
+template <class T, int S>
 auto _atov(int size, T (*arr)[S]){
     std::vector<decltype(_atov(S, arr[0]))> ret;
     ret.reserve(size);
@@ -281,7 +290,7 @@ auto _atov(int size, T (*arr)[S]){
 }
 
 
-#ifdef DEBUG
+#ifdef RP_DEBUG
 #include<numeric>
 #include<map>
 #include<set>
@@ -289,7 +298,7 @@ auto _atov(int size, T (*arr)[S]){
 struct _Elem{
     int x, y;
 };
-inline void _test_print(){
+inline void testPrint(){
     using namespace std;
     string s = "abc";
     vector<int> v = {1, 2, 3};
@@ -354,3 +363,14 @@ inline void _test_print(){
 }
 #endif
 
+}
+
+#ifdef RP_WITHOUTNS
+#ifdef RP_DEBUG
+using rprint::testPrint;
+#endif
+using rprint::olambda;
+using rprint::printl;
+using rprint::printc;
+using rprint::prints;
+#endif
