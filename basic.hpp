@@ -19,11 +19,31 @@
 #define FOR_ALL(container, lambda) std::for_each(container.begin(), container.end(), lambda)
 // using namespace std;
 
-//TODO _ -> namespace
+//TODO namespace
+//TODO divide file
 
+
+//params
 #define DEBUG
 #define USECOLOR
 #define ELEMLIMIT 0 //10
+
+//helper
+#define atov(vec) _atov(_elems(sizeof(vec), vec), vec)
+template <class... S>
+auto olambda(S... s);
+
+//print functions
+template <std::ostream& out = std::cout, class... F>
+void printl(F&&... f);
+template <std::ostream& out = std::cout, class... F>
+void printc(F&&... f);
+template <std::ostream& out = std::cout, class... F>
+void prints(F&&... f);
+#define printd(var) prints(#var, var);
+
+//--------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
 
 template <class... F>
 struct _OLambda : F...{
@@ -146,7 +166,7 @@ auto getAtom(S&& s){
 
 template <std::ostream& out, class F, class T>
 auto _print(F f, T&& t) -> typename std::enable_if_t<decltype(typeAnd(typeNot(isPair(t)), typeOr(typeNot(iterable(t)), outable<out>(t))))::value>{
-// auto _print(F f, T&& t) -> decltype(viableIf<void>(typeNot(isPair(t)), typeOr(typeNot(iterable(t)), outable<out>(t)))::value{
+// auto _print(F f, T&& t) -> decltype(viableIfAll<void>(typeNot(isPair(t)), typeOr(typeNot(iterable(t)), outable<out>(t)))::value{
     f(out, t);
 }
 template <std::ostream& out, class F, class T>
@@ -232,15 +252,15 @@ template <char suffix, std::ostream& out = std::cout, class R>
 void sprint(R&& r){
     sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r);
 }
-//TODO forward
-template <std::ostream& out = std::cout, class... F>
+template <std::ostream& out, class... F>
 void printl(F&&... f){ sprint<'\n', out>(std::forward<F>(f)...); }
-template <std::ostream& out = std::cout, class... F>
+template <std::ostream& out, class... F>
 void printc(F&&... f){ sprint<',', out>(std::forward<F>(f)...); }
-template <std::ostream& out = std::cout, class... F>
+template <std::ostream& out, class... F>
 void prints(F&&... f){ sprint<' ', out>(std::forward<F>(f)...); }
 #define printd(var) prints(#var, var);
 
+//TODO ok?
 template <std::ostream& out = std::cout, class T, class... F>
 void printPtr(T* base, F&&... f){
     prints<out>(olambda([](std::ostream& out_, auto a){ out_ << a;}, [base](std::ostream& out_, T* p){ out_ << p - base; }), std::forward<F>(f)...);
@@ -256,6 +276,26 @@ void printPtr(T* base, F&&... f){
 //     info(h);
 //     info(t...);
 // }
+
+
+template < class T, int S>
+int _elems(int size, T (*)[S]){
+    return size / sizeof(T) / S;
+}
+template < class T>
+auto _atov(int size, T (*arr)){
+    return vector<T>(arr, arr + size);
+}
+template < class T, int S>
+auto _atov(int size, T (*arr)[S]){
+    vector<decltype(_atov(S, arr[0]))> ret;
+    ret.reserve(size);
+    for(int i=0;i<size;i++){
+        ret.emplace_back(_atov(S, arr[i]));
+    }
+    return ret;
+}
+
 
 #ifdef DEBUG
 struct _Elem{
@@ -320,6 +360,8 @@ inline void _test_print(){
     prints(_Char{'a'});
     prints(_Raw<int>{1});
     // prints(decltype(outable<std::cout>([](auto a){;}))::value);
+    int c[2][3][4];
+    prints(atov(c));
 
 }
 #endif
