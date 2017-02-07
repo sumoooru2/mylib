@@ -2,11 +2,15 @@
 #include<iostream>
 #include<vector>
 
+#include<numeric>
+#include<map>
+#include<set>
+
 namespace rprint{
 
 //params
 #ifndef RP_CUSTOM
-#define RP_DEBUG
+// #define RP_DEBUG
 #define RP_USECOLOR
 #define RP_WITHOUTNS
 #endif
@@ -27,7 +31,12 @@ template <std::ostream& out = std::cout, class... F>
 void printc(F&&... f);
 template <std::ostream& out = std::cout, class... F>
 void prints(F&&... f);
-#define printd(var) prints(#var, var);
+// #define printd(var) prints(#var, var);
+#define printa(arr) prints(atov(arr))
+#define printd(...) prints(#__VA_ARGS__), printc(__VA_ARGS__)
+// void printd();
+// template <std::ostream& out = std::cout, class S, class... F>
+// void printd(S&& s, F&&... f);
 
 #ifdef RP_DEBUG
 inline void testPrint();
@@ -225,23 +234,35 @@ void print(T&&... t){
 
 
 template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
+auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void());
+template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
+auto sprint(F f, S&& s, T&&... t) -> typename std::enable_if_t<sizeof...(T) != 0 && decltype(callable(f, out, getAtom(s)))::value>;
+template <char suffix, std::ostream& out = std::cout, class R, class S, class... T>
+auto sprint(R&& r, S&& s, T... t) -> typename std::enable_if_t<!decltype(callable(r, out, getAtom(s)))::value>;
+template <char suffix, std::ostream& out = std::cout, class R, class S>
+auto sprint(R&& r, S&& s) -> typename std::enable_if_t<!decltype(callable(r, out, getAtom(s)))::value>;
+template <char suffix, std::ostream& out = std::cout, class R>
+void sprint(R&& r);
+
+template <char suffix, std::ostream& out, class F, class S, class... T>
 auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){
     printHook<out>(f, s, _Char{'\n'});
 }
-template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
+template <char suffix, std::ostream& out, class F, class S, class... T>
 auto sprint(F f, S&& s, T&&... t) -> typename std::enable_if_t<sizeof...(T) != 0 && decltype(callable(f, out, getAtom(s)))::value>{
     printHook<out>(f, s, _Char{suffix});
     sprint<suffix, out>(f, t...);
 }
-template <char suffix, std::ostream& out = std::cout, class R, class S, class... T>
+template <char suffix, std::ostream& out, class R, class S, class... T>
 auto sprint(R&& r, S&& s, T... t) -> typename std::enable_if_t<!decltype(callable(r, out, getAtom(s)))::value>{
     sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r, s, t...);
 }
-template <char suffix, std::ostream& out = std::cout, class R, class S>
+//TODO necessary?
+template <char suffix, std::ostream& out, class R, class S>
 auto sprint(R&& r, S&& s) -> typename std::enable_if_t<!decltype(callable(r, out, getAtom(s)))::value>{
     sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r, s);
 }
-template <char suffix, std::ostream& out = std::cout, class R>
+template <char suffix, std::ostream& out, class R>
 void sprint(R&& r){
     sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r);
 }
@@ -251,7 +272,8 @@ template <std::ostream& out, class... F>
 void printc(F&&... f){ sprint<',', out>(std::forward<F>(f)...); }
 template <std::ostream& out, class... F>
 void prints(F&&... f){ sprint<' ', out>(std::forward<F>(f)...); }
-#define printd(var) prints(#var, var);
+// template <std::ostream& out, class... F>
+// void printcs(F&&... f){ sprint<',', out>(std::forward<F>(f)...); }
 
 //TODO ok?
 template <std::ostream& out = std::cout, class T, class... F>
@@ -291,10 +313,6 @@ auto _atov(int size, T (*arr)[S]){
 
 
 #ifdef RP_DEBUG
-#include<numeric>
-#include<map>
-#include<set>
-// #include<>
 struct _Elem{
     int x, y;
 };
@@ -359,6 +377,9 @@ inline void testPrint(){
     // prints(decltype(outable<std::cout>([](auto a){;}))::value);
     int c[2][3][4];
     prints(atov(c));
+    printa(c);
+    printd(v3);
+    printd(v2, p);
 
 }
 #endif
@@ -373,4 +394,5 @@ using rprint::olambda;
 using rprint::printl;
 using rprint::printc;
 using rprint::prints;
+// using rprint::printd;
 #endif
