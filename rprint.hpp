@@ -165,25 +165,20 @@ auto getAtom(S&& s);
 
 template <class S>
 auto getAtom(S&& s) -> decltype(ifAll<S>(!isPair(s), !iterable(s))){
-    std::cout<<4<< '\n';
     return s;
 }
 template <class S>
 auto getAtom(S&& s) -> decltype(ifAll<decltype(getAtom(s.first))>(isPair(s))){
-    std::cout<<3<< '\n';
     return getAtom(s.first);
 }
 template <class S, class>
 auto getAtom(S&& s){
 // template <class S>
 // auto getAtom(S&& s) -> decltype(ifAll(iterable(s))){
-    std::cout<<1<< '\n';
     return getAtom(*s.begin());
 }
 template <class T>
-T getAtom(_Raw<T>& c){
-    std::cout<<2<< '\n';
-return c.t; }
+T getAtom(_Raw<T>& c){ return c.t; }
 template <class T>
 T getAtom(_Raw<T>&& c){ return c.t; }
 
