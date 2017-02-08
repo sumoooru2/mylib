@@ -78,6 +78,10 @@ struct _Raw{
 using _Char = _Raw<char>;
 using _String = _Raw<const char*>;
 
+//for gcc (operator !)
+struct tTrue : public std::true_type{ };
+struct tFalse : public std::false_type{ };
+
 template <class... S>
 auto olambda(S... s){
     return OLambda<S...>(s...);
@@ -101,74 +105,91 @@ _String getColor(int nest){
 }
 
 template <class T, class = typename T::iterator>
-std::true_type iterable(T);
-std::false_type iterable(...);
-// template <class T, class = typename T::iterator>
-// std::false_type uniterable(T);
-// std::true_type uniterable(...);
+tTrue iterable(T);
+tFalse iterable(...);
 
 template <std::ostream& out, class T>
-auto outable(T t) -> decltype(out << t, std::true_type());
+auto outable(T t) -> decltype(out << t, tTrue());
 template <std::ostream&>
-std::false_type outable(...);
+tFalse outable(...);
 
 template <class F, class T>
-auto callable(F f, T&& t) -> decltype(f(t), std::true_type());
+auto callable(F f, T&& t) -> decltype(f(t), tTrue());
 template <class F, class S, class T>
-auto callable(F f, S&& s, T&& t) -> decltype(f(s, t), std::true_type());
-std::false_type callable(...);
+auto callable(F f, S&& s, T&& t) -> decltype(f(s, t), tTrue());
+tFalse callable(...);
 
+// template <class <class A, class B> P, class S, class T>
+// tTrue isPair(P<S, T>);
 template <class S, class T>
-std::true_type isPair(std::pair<S, T>);
-std::false_type isPair(...);
-// template <class S, class T>
-// std::false_type isntPair(std::pair<S, T>);
-// std::true_type isntPair(...);
+tTrue isPair(std::pair<S, T>);
+tFalse isPair(...);
 
-std::false_type typeAnd(...);
+tFalse vtPositive(...);
+template <class... S>
+auto vtPositive(S...) -> typename std::enable_if_t<sizeof...(S) != 0, tTrue>;
+
+tFalse tAnd(...);
 template <class S>
-auto typeAnd(S) -> std::enable_if_t<S::value, std::true_type>;
+auto tAnd(S) -> std::enable_if_t<S::value, tTrue>;
 template <class S, class... T>
-auto typeAnd(S, T... t) -> std::enable_if_t<S::value && decltype(typeAnd(t...))::value, std::true_type>;
+auto tAnd(S, T... t) -> std::enable_if_t<S::value && decltype(tAnd(t...))::value, tTrue>;
 
-std::false_type typeOr(...);
+tFalse tOr(...);
 template <class S>
-auto typeOr(S) -> std::enable_if_t<S::value, std::true_type>;
+auto tOr(S) -> std::enable_if_t<S::value, tTrue>;
 template <class S, class... T>
-auto typeOr(S, T... t) -> std::enable_if_t<S::value || decltype(typeOr(t...))::value, std::true_type>;
+auto tOr(S, T... t) -> std::enable_if_t<S::value || decltype(tOr(t...))::value, tTrue>;
 
-std::true_type typeNot(std::false_type);
-std::false_type typeNot(std::true_type);
+tTrue tNot(tFalse);
+tFalse tNot(tTrue);
+
+tTrue operator ! (tFalse);
+tFalse operator ! (tTrue);
+
+tFalse operator || (tFalse, tFalse);
+tTrue operator || (tTrue, tFalse);
+tTrue operator || (tFalse, tTrue);
+tTrue operator || (tTrue, tTrue);
+
+template <class R = void, class S>
+auto ifAll(S) -> std::enable_if_t<S::value, R>;
+template <class R = void, class S, class... T>
+auto ifAll(S, T... t) -> std::enable_if_t<S::value && decltype(tAnd(t...))::value, R>;
 
 
 template <class S, class = typename std::remove_reference<S>::type::iterator>
 auto getAtom(S&& s);
+// template <class S>
+// auto getAtom(S&& s) -> decltype(ifAll(iterable(s)));
 
 template <class S>
-auto getAtom(S&& s) -> typename std::enable_if_t<!decltype(isPair(s))::value && !decltype(iterable(s))::value, S>{
+auto getAtom(S&& s) -> decltype(ifAll<S>(!isPair(s), !iterable(s))){
+    std::cout<<4<< '\n';
     return s;
 }
 template <class S>
-auto getAtom(S&& s) -> typename std::enable_if_t<decltype(isPair(s))::value, decltype(getAtom(s.first))>{
+auto getAtom(S&& s) -> decltype(ifAll<decltype(getAtom(s.first))>(isPair(s))){
+    std::cout<<3<< '\n';
     return getAtom(s.first);
-}
-template <class T>
-char getAtom(_Raw<T>& c){
-    return c.t;
-}
-template <class T>
-char getAtom(_Raw<T>&& c){
-    return c.t;
 }
 template <class S, class>
 auto getAtom(S&& s){
+// template <class S>
+// auto getAtom(S&& s) -> decltype(ifAll(iterable(s))){
+    std::cout<<1<< '\n';
     return getAtom(*s.begin());
 }
+template <class T>
+T getAtom(_Raw<T>& c){
+    std::cout<<2<< '\n';
+return c.t; }
+template <class T>
+T getAtom(_Raw<T>&& c){ return c.t; }
 
 
 template <std::ostream& out, class F, class T>
-auto _print(F f, T&& t) -> typename std::enable_if_t<decltype(typeAnd(typeNot(isPair(t)), typeOr(typeNot(iterable(t)), outable<out>(t))))::value>{
-// auto _print(F f, T&& t) -> decltype(viableIfAll<void>(typeNot(isPair(t)), typeOr(typeNot(iterable(t)), outable<out>(t)))::value{
+auto _print(F f, T&& t) -> decltype(ifAll(!isPair(t), !iterable(t) || outable<out>(t))){
     f(out, t);
 }
 template <std::ostream& out, class F, class T>
@@ -177,19 +198,20 @@ void _print(F, _Raw<T> r){
 }
 
 template <std::ostream& out, class F, class H, class... T>
-auto _print(F f, H&& h, T&&... t) -> std::enable_if_t<sizeof...(T) != 0>;
+auto _print(F f, H&& h, T&&... t) -> decltype(ifAll(vtPositive(t...)));
 
 template <std::ostream& out, class F, class S, class T>
 auto _printc(F f, S&& color, T&& t){
     _print<out>(f, color, _Raw<T>{t}, _reset);
 }
 template <std::ostream& out, class F, class T>
-auto _print(F f, T&& t) -> typename std::enable_if_t<decltype(isPair(t))::value>{
+auto _print(F f, T&& t) -> decltype(ifAll(isPair(t))){
     _print<out>(f, _Char{'{'}, t.first, _Char{','}, t.second, _Char{'}'});
 }
 template <std::ostream& out, class F, class T>
-auto _print(F f, T&& t) -> typename std::enable_if_t<!decltype(outable<out>(t))::value && decltype(iterable(t))::value>{
-    bool bottom = !decltype(iterable(*t.begin()))::value, nestPrint = !bottom && RP_ELEMLIMIT < t.size();
+auto _print(F f, T&& t) -> decltype(ifAll(!outable<out>(t), iterable(t))){
+    bool bottom = !decltype(iterable(*t.begin()))::value,
+         nestPrint = !bottom && RP_ELEMLIMIT < t.size();
     int nest = getNestCnt(true);
     auto color = getColor(nest);
     _printc<out>(f, color, '[');
@@ -209,7 +231,7 @@ auto _print(F f, T&& t) -> typename std::enable_if_t<!decltype(outable<out>(t)):
     getNestCnt(false);
 }
 template <std::ostream& out, class F, class H, class... T>
-auto _print(F f, H&& h, T&&... t) -> std::enable_if_t<sizeof...(T) != 0>{
+auto _print(F f, H&& h, T&&... t) -> decltype(ifAll(vtPositive(t...))){
     _print<out>(f, h);
     _print<out>(f, t...);
 }
@@ -224,7 +246,7 @@ void printHook(A... args){
 //--------------------------------------------------------------------------------
 
 template <std::ostream& out = std::cout, class F, class S, class... T>
-auto print(F f, S&& s, T&&... t) -> decltype(f(out, getAtom(s)), void()){
+auto print(F f, S&& s, T&&... t) -> decltype(ifAll(callable(f, out, getAtom(s)))){
     printHook<out>(f, s, t...);
 }
 template <std::ostream& out = std::cout, class... T>
@@ -234,32 +256,35 @@ void print(T&&... t){
 
 
 template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
-auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void());
+//TODO different signiture?
+// auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void());
+auto sprint(F f, S&& s) -> decltype(ifAll(callable(f, out, getAtom(s))));
 template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
-auto sprint(F f, S&& s, T&&... t) -> typename std::enable_if_t<sizeof...(T) != 0 && decltype(callable(f, out, getAtom(s)))::value>;
+auto sprint(F f, S&& s, T&&... t) -> decltype(ifAll(vtPositive(t...), callable(f, out, getAtom(s))));
 template <char suffix, std::ostream& out = std::cout, class R, class S, class... T>
-auto sprint(R&& r, S&& s, T... t) -> typename std::enable_if_t<!decltype(callable(r, out, getAtom(s)))::value>;
+auto sprint(R&& r, S&& s, T... t) -> decltype(ifAll(!callable(r, out, getAtom(s))));
 template <char suffix, std::ostream& out = std::cout, class R, class S>
-auto sprint(R&& r, S&& s) -> typename std::enable_if_t<!decltype(callable(r, out, getAtom(s)))::value>;
+auto sprint(R&& r, S&& s) -> decltype(ifAll(!callable(r, out, getAtom(s))));
 template <char suffix, std::ostream& out = std::cout, class R>
 void sprint(R&& r);
 
 template <char suffix, std::ostream& out, class F, class S, class... T>
-auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){
+// auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){
+auto sprint(F f, S&& s) -> decltype(ifAll(callable(f, out, getAtom(s)))){
     printHook<out>(f, s, _Char{'\n'});
 }
 template <char suffix, std::ostream& out, class F, class S, class... T>
-auto sprint(F f, S&& s, T&&... t) -> typename std::enable_if_t<sizeof...(T) != 0 && decltype(callable(f, out, getAtom(s)))::value>{
+auto sprint(F f, S&& s, T&&... t) -> decltype(ifAll(vtPositive(t...), callable(f, out, getAtom(s)))){
     printHook<out>(f, s, _Char{suffix});
     sprint<suffix, out>(f, t...);
 }
 template <char suffix, std::ostream& out, class R, class S, class... T>
-auto sprint(R&& r, S&& s, T... t) -> typename std::enable_if_t<!decltype(callable(r, out, getAtom(s)))::value>{
+auto sprint(R&& r, S&& s, T... t) -> decltype(ifAll(!callable(r, out, getAtom(s)))){
     sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r, s, t...);
 }
 //TODO necessary?
 template <char suffix, std::ostream& out, class R, class S>
-auto sprint(R&& r, S&& s) -> typename std::enable_if_t<!decltype(callable(r, out, getAtom(s)))::value>{
+auto sprint(R&& r, S&& s) -> decltype(ifAll(!callable(r, out, getAtom(s)))){
     sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r, s);
 }
 template <char suffix, std::ostream& out, class R>
