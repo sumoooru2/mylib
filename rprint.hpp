@@ -108,9 +108,8 @@ template <class T, class = typename T::iterator>
 tTrue iterable(T);
 tFalse iterable(...);
 
-template <std::ostream& out, class T>
-auto outable(T t) -> decltype(out << t, tTrue());
-template <std::ostream&>
+template <class T>
+auto outable(std::ostream& out, T t) -> decltype(out << t, tTrue());
 tFalse outable(...);
 
 template <class F, class T>
@@ -160,21 +159,16 @@ auto ifAll(S, T... t) -> std::enable_if_t<S::value && decltype(tAnd(t...))::valu
 
 template <class S, class = typename std::remove_reference<S>::type::iterator>
 auto getAtom(S&& s);
-// template <class S>
-// auto getAtom(S&& s) -> decltype(ifAll(iterable(s)));
-
 template <class S>
 auto getAtom(S&& s) -> decltype(ifAll<S>(!isPair(s), !iterable(s))){
     return s;
 }
 template <class S>
-auto getAtom(S&& s) -> decltype(ifAll<decltype(getAtom(s.first))>(isPair(s))){
+auto getAtom(S&& s) -> decltype(ifAll(isPair(s)), getAtom(s.first)){
     return getAtom(s.first);
 }
 template <class S, class>
 auto getAtom(S&& s){
-// template <class S>
-// auto getAtom(S&& s) -> decltype(ifAll(iterable(s))){
     return getAtom(*s.begin());
 }
 template <class T>
@@ -183,59 +177,58 @@ template <class T>
 T getAtom(_Raw<T>&& c){ return c.t; }
 
 
-template <std::ostream& out, class F, class T>
-auto _print(F f, T&& t) -> decltype(ifAll(!isPair(t), !iterable(t) || outable<out>(t))){
+template <class F, class T>
+auto _print(std::ostream& out, F f, T&& t) -> decltype(ifAll(!isPair(t), !iterable(t) || outable(out, t))){
     f(out, t);
 }
-template <std::ostream& out, class F, class T>
-void _print(F, _Raw<T> r){
+template <class F, class T>
+void _print(std::ostream& out, F, _Raw<T> r){
     out << r.t;
 }
+template <class F, class H, class... T>
+auto _print(std::ostream& out, F f, H&& h, T&&... t) -> decltype(ifAll(vtPositive(t...)));
 
-template <std::ostream& out, class F, class H, class... T>
-auto _print(F f, H&& h, T&&... t) -> decltype(ifAll(vtPositive(t...)));
-
-template <std::ostream& out, class F, class S, class T>
-auto _printc(F f, S&& color, T&& t){
-    _print<out>(f, color, _Raw<T>{t}, _reset);
+template <class F, class S, class T>
+auto _printc(std::ostream& out, F f, S&& color, T&& t){
+    _print(out, f, color, _Raw<T>{t}, _reset);
 }
-template <std::ostream& out, class F, class T>
-auto _print(F f, T&& t) -> decltype(ifAll(isPair(t))){
-    _print<out>(f, _Char{'{'}, t.first, _Char{','}, t.second, _Char{'}'});
+template <class F, class T>
+auto _print(std::ostream& out, F f, T&& t) -> decltype(ifAll(isPair(t))){
+    _print(out, f, _Char{'{'}, t.first, _Char{','}, t.second, _Char{'}'});
 }
-template <std::ostream& out, class F, class T>
-auto _print(F f, T&& t) -> decltype(ifAll(!outable<out>(t), iterable(t))){
+template <class F, class T>
+auto _print(std::ostream& out, F f, T&& t) -> decltype(ifAll(!outable(out, t), iterable(t))){
     bool bottom = !decltype(iterable(*t.begin()))::value,
          nestPrint = !bottom && RP_ELEMLIMIT < t.size();
     int nest = getNestCnt(true);
     auto color = getColor(nest);
-    _printc<out>(f, color, '[');
-    if(!bottom && RP_ELEMLIMIT == 0){ _print<out>(f, _Char{'\n'}); }
+    _printc(out, f, color, '[');
+    if(!bottom && RP_ELEMLIMIT == 0){ _print(out, f, _Char{'\n'}); }
     for(auto& elem : t){
         if(nestPrint){
-            for(int i=0;i<=nest;i++){ _print<out>(f, _String{"	"}); }
+            for(int i=0;i<=nest;i++){ _print(out, f, _String{"	"}); }
         }
-        _print<out>(f, elem);
+        _print(out, f, elem);
         if(&elem == &*t.rbegin()){
-            _printc<out>(f, color, ']');
+            _printc(out, f, color, ']');
         }else{
-            _print<out>(f, _String{nestPrint ? "\n" : " "});
+            _print(out, f, _String{nestPrint ? "\n" : " "});
         }
     }
-    if(t.empty()){ _printc<out>(f, color, ']'); }
+    if(t.empty()){ _printc(out, f, color, ']'); }
     getNestCnt(false);
 }
-template <std::ostream& out, class F, class H, class... T>
-auto _print(F f, H&& h, T&&... t) -> decltype(ifAll(vtPositive(t...))){
-    _print<out>(f, h);
-    _print<out>(f, t...);
+template <class F, class H, class... T>
+auto _print(std::ostream& out, F f, H&& h, T&&... t) -> decltype(ifAll(vtPositive(t...))){
+    _print(out, f, h);
+    _print(out, f, t...);
 }
 
 //--------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------
 template <std::ostream& out, class... A>
-void printHook(A... args){
-    _print<out>(std::forward<A>(args)...);
+void printHook(A&&... args){
+    _print(out, std::forward<A>(args)...);
 }
 //--------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------
@@ -249,49 +242,42 @@ void print(T&&... t){
     print<out>([](std::ostream&, auto&& a){ out << a; }, t...);
 }
 
+template <char suffix, std::ostream& out = std::cout, class... A>
+void _sprint(A&&... args);
 
-template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
 //TODO different signiture?
+// template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
 // auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void());
-auto sprint(F f, S&& s) -> decltype(ifAll(callable(f, out, getAtom(s))));
-template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
-auto sprint(F f, S&& s, T&&... t) -> decltype(ifAll(vtPositive(t...), callable(f, out, getAtom(s))));
-template <char suffix, std::ostream& out = std::cout, class R, class S, class... T>
-auto sprint(R&& r, S&& s, T... t) -> decltype(ifAll(!callable(r, out, getAtom(s))));
-template <char suffix, std::ostream& out = std::cout, class R, class S>
-auto sprint(R&& r, S&& s) -> decltype(ifAll(!callable(r, out, getAtom(s))));
-template <char suffix, std::ostream& out = std::cout, class R>
-void sprint(R&& r);
 
-template <char suffix, std::ostream& out, class F, class S, class... T>
+template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
 // auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){
 auto sprint(F f, S&& s) -> decltype(ifAll(callable(f, out, getAtom(s)))){
     printHook<out>(f, s, _Char{'\n'});
 }
-template <char suffix, std::ostream& out, class F, class S, class... T>
+template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
 auto sprint(F f, S&& s, T&&... t) -> decltype(ifAll(vtPositive(t...), callable(f, out, getAtom(s)))){
     printHook<out>(f, s, _Char{suffix});
-    sprint<suffix, out>(f, t...);
+    _sprint<suffix, out>(f, t...);
 }
-template <char suffix, std::ostream& out, class R, class S, class... T>
-auto sprint(R&& r, S&& s, T... t) -> decltype(ifAll(!callable(r, out, getAtom(s)))){
-    sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r, s, t...);
+template <char suffix, std::ostream& out = std::cout, class R, class S, class... T>
+auto sprint(R&& r, S&& s, T&&... t) -> decltype(ifAll(!callable(r, out, getAtom(s)))){
+    _sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r, s, t...);
 }
-//TODO necessary?
-template <char suffix, std::ostream& out, class R, class S>
-auto sprint(R&& r, S&& s) -> decltype(ifAll(!callable(r, out, getAtom(s)))){
-    sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r, s);
-}
-template <char suffix, std::ostream& out, class R>
+template <char suffix, std::ostream& out = std::cout, class R>
 void sprint(R&& r){
-    sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r);
+    _sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r);
 }
+template <char suffix, std::ostream& out, class... A>
+void _sprint(A&&... args){
+    sprint<suffix, out>(std::forward<A>(args)...);
+}
+
 template <std::ostream& out, class... F>
-void printl(F&&... f){ sprint<'\n', out>(std::forward<F>(f)...); }
+void printl(F&&... f){ sprint<'\n'>(std::forward<F>(f)...); }
 template <std::ostream& out, class... F>
-void printc(F&&... f){ sprint<',', out>(std::forward<F>(f)...); }
+void printc(F&&... f){ sprint<','>(std::forward<F>(f)...); }
 template <std::ostream& out, class... F>
-void prints(F&&... f){ sprint<' ', out>(std::forward<F>(f)...); }
+void prints(F&&... f){ sprint<' '>(std::forward<F>(f)...); }
 // template <std::ostream& out, class... F>
 // void printcs(F&&... f){ sprint<',', out>(std::forward<F>(f)...); }
 
