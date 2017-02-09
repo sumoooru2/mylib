@@ -242,12 +242,9 @@ void print(T&&... t){
     print<out>([](std::ostream&, auto&& a){ out << a; }, t...);
 }
 
+
 template <char suffix, std::ostream& out = std::cout, class... A>
 void _sprint(A&&... args);
-
-//TODO different signiture?
-// template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
-// auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void());
 
 template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
 // auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){
@@ -267,10 +264,12 @@ template <char suffix, std::ostream& out = std::cout, class R>
 void sprint(R&& r){
     _sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r);
 }
+
 template <char suffix, std::ostream& out, class... A>
 void _sprint(A&&... args){
     sprint<suffix, out>(std::forward<A>(args)...);
 }
+
 
 template <std::ostream& out, class... F>
 void printl(F&&... f){ sprint<'\n'>(std::forward<F>(f)...); }
