@@ -172,9 +172,7 @@ auto getAtom(S&& s){
     return getAtom(*s.begin());
 }
 template <class T>
-T getAtom(_Raw<T>& c){ return c.t; }
-template <class T>
-T getAtom(_Raw<T>&& c){ return c.t; }
+T getAtom(_Raw<T> c){ return c.t; }
 
 
 template <class F, class T>
@@ -298,6 +296,10 @@ void printPtr(T* base, F&&... f){
 // }
 
 
+template <class T>
+int elems(int size, T []){
+    return size / sizeof(T);
+}
 template <class T, int S>
 int elems(int size, T (*)[S]){
     return size / sizeof(T) / S;
@@ -383,6 +385,8 @@ inline void testPrint(){
     int c[2][3][4];
     prints(atov(c));
     printa(c);
+    int d[10];
+    printa(d);
     printd(v3);
     printd(v2, p);
 
