@@ -21,8 +21,6 @@ namespace rprint{
 
 //helpers
 #define atov(vec) rprint::_atov(rprint::elems(sizeof(vec), vec), vec)
-template <class... S>
-auto olambda(S... s);
 
 //print functions
 template <std::ostream& out = std::cout, class... F>
@@ -70,6 +68,17 @@ struct OLambda<S, T, U> : S, T, U{
     using U::operator();
 };
 
+template <class... S>
+auto olambda(S... s){
+    return OLambda<S...>(s...);
+}
+
+auto defaultLambda = olambda(
+        [](std::ostream& _out, auto&& a) -> decltype(_out << a, void()){ _out << a; },
+        [](std::ostream& _out, std::chrono::milliseconds m){ _out << m.count() << "ms"; },
+        [](std::ostream& _out, std::chrono::seconds s){ _out << s.count() << "sec"; }
+        );
+
 template <class T>
 struct _Raw{
     T t;
@@ -81,11 +90,6 @@ using _String = _Raw<const char*>;
 //for gcc (operator !)
 struct tTrue : public std::true_type{ };
 struct tFalse : public std::false_type{ };
-
-template <class... S>
-auto olambda(S... s){
-    return OLambda<S...>(s...);
-}
 
 int getNestCnt(bool inc, int len = 1e9){
     static int cnt = 0;
@@ -104,6 +108,9 @@ _String getColor(int nest){
 #endif
 }
 
+template <class... A>
+void __print(A&&... args);
+
 template <class T, class = typename T::iterator>
 tTrue iterable(T);
 tFalse iterable(...);
@@ -112,10 +119,18 @@ template <class T>
 auto outable(std::ostream& out, T t) -> decltype(out << t, tTrue());
 tFalse outable(...);
 
+// template <class F, class T>
+// auto printable(F f, T&& s) -> decltype(__print(std::cout, f, s), tTrue());
+// template <class F, class S, class T>
+// auto printable(F f, S&& s, T&& t) -> decltype(__print(std::cout, f, s), tTrue());
+// tFalse printable(...);
+
 template <class F, class T>
 auto callable(F f, T&& t) -> decltype(f(t), tTrue());
 template <class F, class S, class T>
 auto callable(F f, S&& s, T&& t) -> decltype(f(s, t), tTrue());
+// template <class F, class S>
+// auto callable(F f, S&& s, std::chrono::milliseconds t) -> decltype(tTrue());
 tFalse callable(...);
 
 // template <class <class A, class B> P, class S, class T>
@@ -183,16 +198,14 @@ template <class F, class T>
 void _print(std::ostream& out, F, _Raw<T> r){
     out << r.t;
 }
-template <class F, class H, class... T>
-auto _print(std::ostream& out, F f, H&& h, T&&... t) -> decltype(ifAll(vtPositive(t...)));
 
 template <class F, class S, class T>
 auto _printc(std::ostream& out, F f, S&& color, T&& t){
-    _print(out, f, color, _Raw<T>{t}, _reset);
+    __print(out, f, color, _Raw<T>{t}, _reset);
 }
 template <class F, class T>
 auto _print(std::ostream& out, F f, T&& t) -> decltype(ifAll(isPair(t))){
-    _print(out, f, _Char{'{'}, t.first, _Char{','}, t.second, _Char{'}'});
+    __print(out, f, _Char{'{'}, t.first, _Char{','}, t.second, _Char{'}'});
 }
 template <class F, class T>
 auto _print(std::ostream& out, F f, T&& t) -> decltype(ifAll(!outable(out, t), iterable(t))){
@@ -206,11 +219,11 @@ auto _print(std::ostream& out, F f, T&& t) -> decltype(ifAll(!outable(out, t), i
         if(nestPrint){
             for(int i=0;i<=nest;i++){ _print(out, f, _String{"	"}); }
         }
-        _print(out, f, elem);
+        __print(out, f, elem);
         if(&elem == &*t.rbegin()){
             _printc(out, f, color, ']');
         }else{
-            _print(out, f, _String{nestPrint ? "\n" : " "});
+            __print(out, f, _String{nestPrint ? "\n" : " "});
         }
     }
     if(t.empty()){ _printc(out, f, color, ']'); }
@@ -218,8 +231,14 @@ auto _print(std::ostream& out, F f, T&& t) -> decltype(ifAll(!outable(out, t), i
 }
 template <class F, class H, class... T>
 auto _print(std::ostream& out, F f, H&& h, T&&... t) -> decltype(ifAll(vtPositive(t...))){
-    _print(out, f, h);
-    _print(out, f, t...);
+    __print(out, f, h);
+    __print(out, f, t...);
+}
+
+
+template <class... A>
+void __print(A&&... args){
+    _print(std::forward<A>(args)...);
 }
 
 //--------------------------------------------------------------------------------
@@ -237,9 +256,8 @@ auto print(F f, S&& s, T&&... t) -> decltype(ifAll(callable(f, out, getAtom(s)))
 }
 template <std::ostream& out = std::cout, class... T>
 void print(T&&... t){
-    print<out>([](std::ostream&, auto&& a){ out << a; }, t...);
+    print<out>(defaultLambda, t...);
 }
-
 
 template <char suffix, std::ostream& out = std::cout, class... A>
 void _sprint(A&&... args);
@@ -256,11 +274,11 @@ auto sprint(F f, S&& s, T&&... t) -> decltype(ifAll(vtPositive(t...), callable(f
 }
 template <char suffix, std::ostream& out = std::cout, class R, class S, class... T>
 auto sprint(R&& r, S&& s, T&&... t) -> decltype(ifAll(!callable(r, out, getAtom(s)))){
-    _sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r, s, t...);
+    _sprint<suffix, out>(defaultLambda, r, s, t...);
 }
 template <char suffix, std::ostream& out = std::cout, class R>
 void sprint(R&& r){
-    _sprint<suffix, out>([](std::ostream& _out, auto&& a){ _out << a; }, r);
+    _sprint<suffix, out>(defaultLambda, r);
 }
 
 template <char suffix, std::ostream& out, class... A>
