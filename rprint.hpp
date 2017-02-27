@@ -24,11 +24,11 @@ namespace rprint{
 #define atov(vec) rprint::_atov(rprint::elems(sizeof(vec), vec), vec)
 
 //print functions
-template <class T, T out, class... F>
+template <class T, T& out, class... F>
 void printl(F&&... f);
-template <class T, T out, class... F>
+template <class T, T& out, class... F>
 void printc(F&&... f);
-template <class T, T out, class... F>
+template <class T, T& out, class... F>
 void prints(F&&... f);
 template <std::ostream& out = std::cout, class... F>
 void printl(F&&... f);
@@ -36,12 +36,6 @@ template <std::ostream& out = std::cout, class... F>
 void printc(F&&... f);
 template <std::ostream& out = std::cout, class... F>
 void prints(F&&... f);
-template <class... F>
-void printld(F&&... f);
-template <class... F>
-void printcd(F&&... f);
-template <class... F>
-void printsd(F&&... f);
 // #define printd(var) prints(#var, var);
 #define printa(arr) prints(atov(arr))
 #define printd(...) prints(#__VA_ARGS__, __VA_ARGS__)
@@ -87,7 +81,8 @@ auto olambda(S... s){
     return OLambda<S...>(s...);
 }
 
-auto defaultLambda = olambda(
+inline auto defaultLambda(){
+    return olambda(
         [](auto&& _out, bool b){ _out << (b ? "true" : "false"); },
         [](auto&& _out, auto&& a) -> decltype(_out << a, void()){ _out << a; },
 #ifdef __clang__
@@ -96,6 +91,7 @@ auto defaultLambda = olambda(
 #endif
         [](auto&& _out, auto&& d) -> decltype(std::chrono::duration_cast<std::chrono::nanoseconds>(d), void()){ _out << std::chrono::duration_cast<std::chrono::nanoseconds>(d).count() << "ns"; }
         );
+}
 
 struct Debug{
     std::ostream& out = std::cerr;
@@ -107,7 +103,7 @@ struct Debug{
 #endif
         return *this;
     }
-} debug;
+};
 
 template <class T>
 struct _Raw{
@@ -121,12 +117,12 @@ using _String = _Raw<const char*>;
 struct tTrue : public std::true_type{ };
 struct tFalse : public std::false_type{ };
 
-int getNestCnt(bool inc, int len = 1e9){
+inline int getNestCnt(bool inc, int len = 1e9){
     static int cnt = 0;
     return inc ? cnt++ % len : (len + --cnt) % len;
 }
 constexpr _String _reset{"\e[00m"};
-_String getColor(int nest){
+inline _String getColor(int nest){
 #ifdef RP_USECOLOR
     const int colorLen = 6;
     // static _String colors[colorLen] = {{"\e[36m"}, {"\e[42m"},{"\e[41m"},{"\e[45m"},{"\e[43m"}, {"\e[46m"}};
@@ -309,7 +305,7 @@ auto print(F f, S&& s, T&&... t) -> decltype(ifAll(callable(f, out, getAtom(s)))
 }
 template <class C = std::ostream, C& out = std::cout, class... T>
 void print(T&&... t){
-    print<C, out>(defaultLambda, t...);
+    print<C, out>(defaultLambda(), t...);
 }
 
 template <char suffix, class C = std::ostream, C& out = std::cout, class... A>
@@ -327,11 +323,11 @@ auto sprint(F f, S&& s, T&&... t) -> decltype(ifAll(vtPositive(t...), callable(f
 }
 template <char suffix, class C = std::ostream, C& out = std::cout, class R, class S, class... T>
 auto sprint(R&& r, S&& s, T&&... t) -> decltype(ifAll(!callable(r, out, getAtom(s)))){
-    _sprint<suffix, C, out>(defaultLambda, r, s, t...);
+    _sprint<suffix, C, out>(defaultLambda(), r, s, t...);
 }
 template <char suffix, class C = std::ostream, C& out = std::cout, class R>
 void sprint(R&& r){
-    _sprint<suffix, C, out>(defaultLambda, r);
+    _sprint<suffix, C, out>(defaultLambda(), r);
 }
 
 template <char suffix, class C, C& out, class... A>
@@ -354,12 +350,6 @@ template <std::ostream& out, class... F>
 void printc(F&&... f){ printc<std::ostream, out>(std::forward<F>(f)...); }
 template <std::ostream& out, class... F>
 void prints(F&&... f){ prints<std::ostream, out>(std::forward<F>(f)...); }
-template <class... F>
-void printld(F&&... f){ printl<rprint::Debug, rprint::debug>(std::forward<F>(f)...); }
-template <class... F>
-void printcd(F&&... f){ printc<rprint::Debug, rprint::debug>(std::forward<F>(f)...); }
-template <class... F>
-void printsd(F&&... f){ prints<rprint::Debug, rprint::debug>(std::forward<F>(f)...); }
 
 //TODO ok?
 // template <std::ostream& out = std::cout, class T, class... F>
@@ -458,8 +448,6 @@ inline void testPrint(){
     prints(1ns);
     prints<cerr>(1, 2, 3);
     prints<ostream, cerr>(1, 2, 3);
-    prints<Debug, debug>(1, 2, 3);
-    printsd(1, 2, 3);
 }
 #endif
 
@@ -473,8 +461,5 @@ using rprint::olambda;
 using rprint::printl;
 using rprint::printc;
 using rprint::prints;
-using rprint::printld;
-using rprint::printcd;
-using rprint::printsd;
 // using rprint::printd;
 #endif
