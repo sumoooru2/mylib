@@ -5,6 +5,7 @@
 #include<numeric>
 #include<map>
 #include<set>
+#include<chrono>
 
 namespace rprint{
 
@@ -23,22 +24,36 @@ namespace rprint{
 #define atov(vec) rprint::_atov(rprint::elems(sizeof(vec), vec), vec)
 
 //print functions
+template <class T, T out, class... F>
+void printl(F&&... f);
+template <class T, T out, class... F>
+void printc(F&&... f);
+template <class T, T out, class... F>
+void prints(F&&... f);
 template <std::ostream& out = std::cout, class... F>
 void printl(F&&... f);
 template <std::ostream& out = std::cout, class... F>
 void printc(F&&... f);
 template <std::ostream& out = std::cout, class... F>
 void prints(F&&... f);
+template <class... F>
+void printld(F&&... f);
+template <class... F>
+void printcd(F&&... f);
+template <class... F>
+void printsd(F&&... f);
 // #define printd(var) prints(#var, var);
 #define printa(arr) prints(atov(arr))
-#define printd(...) prints(#__VA_ARGS__), printc(__VA_ARGS__)
-// void printd();
-// template <std::ostream& out = std::cout, class S, class... F>
-// void printd(S&& s, F&&... f);
+#define printd(...) prints(#__VA_ARGS__, __VA_ARGS__)
+// #define printd(...) prints(#__VA_ARGS__), printc(__VA_ARGS__)
 
 #ifdef RP_DEBUG
 inline void testPrint();
 #endif
+
+struct Debug;
+template <class... S>
+auto olambda(S... s);
 
 
 //--------------------------------------------------------------------------------
@@ -49,6 +64,7 @@ struct OLambda : F...{
     OLambda(F... f): F(f)...{ }
 };
 //for gcc
+//TODO variadic macro
 template <class S>
 struct OLambda<S> : S{
     OLambda(S s): S(s){ }
@@ -63,9 +79,7 @@ struct OLambda<S, T> : S, T{
 template <class S, class T, class U>
 struct OLambda<S, T, U> : S, T, U{
     OLambda(S s, T t, U u): S(s), T(t), U(u){ }
-    using S::operator();
-    using T::operator();
-    using U::operator();
+    using S::operator(); using T::operator(); using U::operator();
 };
 
 template <class... S>
@@ -74,10 +88,26 @@ auto olambda(S... s){
 }
 
 auto defaultLambda = olambda(
-        [](std::ostream& _out, auto&& a) -> decltype(_out << a, void()){ _out << a; },
-        [](std::ostream& _out, std::chrono::milliseconds m){ _out << m.count() << "ms"; },
-        [](std::ostream& _out, std::chrono::seconds s){ _out << s.count() << "sec"; }
+        [](auto&& _out, bool b){ _out << (b ? "true" : "false"); },
+        [](auto&& _out, auto&& a) -> decltype(_out << a, void()){ _out << a; },
+#ifdef __clang__
+        [](auto&& _out, std::chrono::milliseconds m){ _out << m.count() << "ms"; },
+        [](auto&& _out, std::chrono::seconds s){ _out << s.count() << "sec"; },
+#endif
+        [](auto&& _out, auto&& d) -> decltype(std::chrono::duration_cast<std::chrono::nanoseconds>(d), void()){ _out << std::chrono::duration_cast<std::chrono::nanoseconds>(d).count() << "ns"; }
         );
+
+struct Debug{
+    std::ostream& out = std::cerr;
+    Debug(std::ostream& out = std::cerr): out(out){}
+    template<class T>
+    Debug& operator << (T t){
+#ifdef LOCAL
+        out << t;
+#endif
+        return *this;
+    }
+} debug;
 
 template <class T>
 struct _Raw{
@@ -115,8 +145,8 @@ template <class T, class = typename T::iterator>
 tTrue iterable(T);
 tFalse iterable(...);
 
-template <class T>
-auto outable(std::ostream& out, T t) -> decltype(out << t, tTrue());
+template <class S, class T>
+auto outable(S& out, T t) -> decltype(out << t, tTrue());
 tFalse outable(...);
 
 // template <class F, class T>
@@ -190,130 +220,6 @@ template <class T>
 T getAtom(_Raw<T> c){ return c.t; }
 
 
-template <class F, class T>
-auto _print(std::ostream& out, F f, T&& t) -> decltype(ifAll(!isPair(t), !iterable(t) || outable(out, t))){
-    f(out, t);
-}
-template <class F, class T>
-void _print(std::ostream& out, F, _Raw<T> r){
-    out << r.t;
-}
-
-template <class F, class S, class T>
-auto _printc(std::ostream& out, F f, S&& color, T&& t){
-    __print(out, f, color, _Raw<T>{t}, _reset);
-}
-template <class F, class T>
-auto _print(std::ostream& out, F f, T&& t) -> decltype(ifAll(isPair(t))){
-    __print(out, f, _Char{'{'}, t.first, _Char{','}, t.second, _Char{'}'});
-}
-template <class F, class T>
-auto _print(std::ostream& out, F f, T&& t) -> decltype(ifAll(!outable(out, t), iterable(t))){
-    bool bottom = !decltype(iterable(*t.begin()))::value,
-         nestPrint = !bottom && RP_ELEMLIMIT < t.size();
-    int nest = getNestCnt(true);
-    auto color = getColor(nest);
-    _printc(out, f, color, '[');
-    if(!bottom && RP_ELEMLIMIT == 0){ _print(out, f, _Char{'\n'}); }
-    for(auto& elem : t){
-        if(nestPrint){
-            for(int i=0;i<=nest;i++){ _print(out, f, _String{"	"}); }
-        }
-        __print(out, f, elem);
-        if(&elem == &*t.rbegin()){
-            _printc(out, f, color, ']');
-        }else{
-            __print(out, f, _String{nestPrint ? "\n" : " "});
-        }
-    }
-    if(t.empty()){ _printc(out, f, color, ']'); }
-    getNestCnt(false);
-}
-template <class F, class H, class... T>
-auto _print(std::ostream& out, F f, H&& h, T&&... t) -> decltype(ifAll(vtPositive(t...))){
-    __print(out, f, h);
-    __print(out, f, t...);
-}
-
-
-template <class... A>
-void __print(A&&... args){
-    _print(std::forward<A>(args)...);
-}
-
-//--------------------------------------------------------------------------------
-//--------------------------------------------------------------------------------
-template <std::ostream& out, class... A>
-void printHook(A&&... args){
-    _print(out, std::forward<A>(args)...);
-}
-//--------------------------------------------------------------------------------
-//--------------------------------------------------------------------------------
-
-template <std::ostream& out = std::cout, class F, class S, class... T>
-auto print(F f, S&& s, T&&... t) -> decltype(ifAll(callable(f, out, getAtom(s)))){
-    printHook<out>(f, s, t...);
-}
-template <std::ostream& out = std::cout, class... T>
-void print(T&&... t){
-    print<out>(defaultLambda, t...);
-}
-
-template <char suffix, std::ostream& out = std::cout, class... A>
-void _sprint(A&&... args);
-
-template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
-// auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){
-auto sprint(F f, S&& s) -> decltype(ifAll(callable(f, out, getAtom(s)))){
-    printHook<out>(f, s, _Char{'\n'});
-}
-template <char suffix, std::ostream& out = std::cout, class F, class S, class... T>
-auto sprint(F f, S&& s, T&&... t) -> decltype(ifAll(vtPositive(t...), callable(f, out, getAtom(s)))){
-    printHook<out>(f, s, _Char{suffix});
-    _sprint<suffix, out>(f, t...);
-}
-template <char suffix, std::ostream& out = std::cout, class R, class S, class... T>
-auto sprint(R&& r, S&& s, T&&... t) -> decltype(ifAll(!callable(r, out, getAtom(s)))){
-    _sprint<suffix, out>(defaultLambda, r, s, t...);
-}
-template <char suffix, std::ostream& out = std::cout, class R>
-void sprint(R&& r){
-    _sprint<suffix, out>(defaultLambda, r);
-}
-
-template <char suffix, std::ostream& out, class... A>
-void _sprint(A&&... args){
-    sprint<suffix, out>(std::forward<A>(args)...);
-}
-
-
-template <std::ostream& out, class... F>
-void printl(F&&... f){ sprint<'\n'>(std::forward<F>(f)...); }
-template <std::ostream& out, class... F>
-void printc(F&&... f){ sprint<','>(std::forward<F>(f)...); }
-template <std::ostream& out, class... F>
-void prints(F&&... f){ sprint<' '>(std::forward<F>(f)...); }
-// template <std::ostream& out, class... F>
-// void printcs(F&&... f){ sprint<',', out>(std::forward<F>(f)...); }
-
-//TODO ok?
-template <std::ostream& out = std::cout, class T, class... F>
-void printPtr(T* base, F&&... f){
-    prints<out>(olambda([](std::ostream& out_, auto a){ out_ << a;}, [base](std::ostream& out_, T* p){ out_ << p - base; }), std::forward<F>(f)...);
-}
-
-// template <class T>
-// void info(T&& t){
-//     print("type ", typeid(t).name(), '\n');
-//     print(t, '\n');
-// }
-// template <class H, class... T>
-// void info(H&& h, T&&... t){
-//     info(h);
-//     info(t...);
-// }
-
-
 template <class T>
 int elems(int size, T []){
     return size / sizeof(T);
@@ -335,6 +241,145 @@ auto _atov(int size, T (*arr)[S]){
     }
     return ret;
 }
+
+//--------------------------------------------------------------------------------
+
+template <class C, class F, class S, class T>
+auto _printc(C& out, F f, S&& color, T&& t){
+    __print(out, f, color, _Raw<T>{t}, _reset);
+}
+
+template <class C, class F, class T>
+auto _print(C& out, F f, T&& t) -> decltype(ifAll(!isPair(t), !iterable(t) || outable(out, t))){
+    f(out, t);
+}
+template <class C, class F, class T>
+void _print(C& out, F, _Raw<T> r){
+    out << r.t;
+}
+template <class C, class F, class T>
+auto _print(C& out, F f, T&& t) -> decltype(ifAll(isPair(t))){
+    __print(out, f, _Char{'{'}, t.first, _Char{','}, t.second, _Char{'}'});
+}
+template <class C, class F, class T>
+auto _print(C& out, F f, T&& t) -> decltype(ifAll(!outable(out, t), iterable(t))){
+    bool bottom = !decltype(iterable(*t.begin()))::value,
+         nestPrint = !bottom && RP_ELEMLIMIT < t.size();
+    int nest = getNestCnt(true);
+    auto color = getColor(nest);
+    _printc(out, f, color, '[');
+    if(!bottom && RP_ELEMLIMIT == 0){ _print(out, f, _Char{'\n'}); }
+    for(const auto& elem : t){
+        if(nestPrint){
+            for(int i=0;i<=nest;i++){ _print(out, f, _String{"	"}); }
+        }
+        __print(out, f, elem);
+        if(&elem == &*t.rbegin()){
+            _printc(out, f, color, ']');
+        }else{
+            __print(out, f, _String{nestPrint ? "\n" : " "});
+        }
+    }
+    if(t.empty()){ _printc(out, f, color, ']'); }
+    getNestCnt(false);
+}
+template <class C, class F, class H, class... T>
+auto _print(C& out, F f, H&& h, T&&... t) -> decltype(ifAll(vtPositive(t...))){
+    __print(out, f, h);
+    __print(out, f, t...);
+}
+
+template <class... A>
+void __print(A&&... args){
+    _print(std::forward<A>(args)...);
+}
+
+//--------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
+template <class C, C& out, class... A>
+void printHook(A&&... args){
+    _print(out, std::forward<A>(args)...);
+}
+//--------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------
+
+template <class C = std::ostream, C& out = std::cout, class F, class S, class... T>
+auto print(F f, S&& s, T&&... t) -> decltype(ifAll(callable(f, out, getAtom(s)))){
+    printHook<C, out>(f, s, t...);
+}
+template <class C = std::ostream, C& out = std::cout, class... T>
+void print(T&&... t){
+    print<C, out>(defaultLambda, t...);
+}
+
+template <char suffix, class C = std::ostream, C& out = std::cout, class... A>
+void _sprint(A&&... args);
+
+template <char suffix, class C = std::ostream, C& out = std::cout, class F, class S, class... T>
+// auto sprint(F f, S&& s) -> decltype(f(out, getAtom(s)), void()){
+auto sprint(F f, S&& s) -> decltype(ifAll(callable(f, out, getAtom(s)))){
+    printHook<C, out>(f, s, _Char{'\n'});
+}
+template <char suffix, class C = std::ostream, C& out = std::cout, class F, class S, class... T>
+auto sprint(F f, S&& s, T&&... t) -> decltype(ifAll(vtPositive(t...), callable(f, out, getAtom(s)))){
+    printHook<C, out>(f, s, _Char{suffix});
+    _sprint<suffix, C, out>(f, t...);
+}
+template <char suffix, class C = std::ostream, C& out = std::cout, class R, class S, class... T>
+auto sprint(R&& r, S&& s, T&&... t) -> decltype(ifAll(!callable(r, out, getAtom(s)))){
+    _sprint<suffix, C, out>(defaultLambda, r, s, t...);
+}
+template <char suffix, class C = std::ostream, C& out = std::cout, class R>
+void sprint(R&& r){
+    _sprint<suffix, C, out>(defaultLambda, r);
+}
+
+template <char suffix, class C, C& out, class... A>
+void _sprint(A&&... args){
+    sprint<suffix, C, out>(std::forward<A>(args)...);
+}
+
+
+// template <std::ostream& out, class... F>
+// void printcs(F&&... f){ sprint<',', out>(std::forward<F>(f)...); }
+template <class T, T& out, class... F>
+void printl(F&&... f){ sprint<'\n', T, out>(std::forward<F>(f)...); }
+template <class T, T& out, class... F>
+void printc(F&&... f){ sprint<',', T, out>(std::forward<F>(f)...); }
+template <class T, T& out, class... F>
+void prints(F&&... f){ sprint<' ', T, out>(std::forward<F>(f)...); }
+template <std::ostream& out, class... F>
+void printl(F&&... f){ printl<std::ostream, out>(std::forward<F>(f)...); }
+template <std::ostream& out, class... F>
+void printc(F&&... f){ printc<std::ostream, out>(std::forward<F>(f)...); }
+template <std::ostream& out, class... F>
+void prints(F&&... f){ prints<std::ostream, out>(std::forward<F>(f)...); }
+template <class... F>
+void printld(F&&... f){ printl<rprint::Debug, rprint::debug>(std::forward<F>(f)...); }
+template <class... F>
+void printcd(F&&... f){ printc<rprint::Debug, rprint::debug>(std::forward<F>(f)...); }
+template <class... F>
+void printsd(F&&... f){ prints<rprint::Debug, rprint::debug>(std::forward<F>(f)...); }
+
+//TODO ok?
+// template <std::ostream& out = std::cout, class T, class... F>
+// void printPtr(T* base, F&&... f){
+//     prints<out>(olambda([](std::ostream& out_, auto a){ out_ << a;}, [base](std::ostream& out_, T* p){ out_ << p - base; }), std::forward<F>(f)...);
+// }
+
+//--------------------------------------------------------------------------------
+
+// template <class T>
+// void info(T&& t){
+//     print("type ", typeid(t).name(), '\n');
+//     print(t, '\n');
+// }
+// template <class H, class... T>
+// void info(H&& h, T&&... t){
+//     info(h);
+//     info(t...);
+// }
+
 
 
 #ifdef RP_DEBUG
@@ -407,11 +452,18 @@ inline void testPrint(){
     printa(d);
     printd(v3);
     printd(v2, p);
-
+    prints(1s);
+    prints(1ms);
+    prints(1us);
+    prints(1ns);
+    prints<cerr>(1, 2, 3);
+    prints<ostream, cerr>(1, 2, 3);
+    prints<Debug, debug>(1, 2, 3);
+    printsd(1, 2, 3);
 }
 #endif
 
-}
+} //namespace rprint
 
 #ifdef RP_WITHOUTNS
 #ifdef RP_DEBUG
@@ -421,5 +473,8 @@ using rprint::olambda;
 using rprint::printl;
 using rprint::printc;
 using rprint::prints;
+using rprint::printld;
+using rprint::printcd;
+using rprint::printsd;
 // using rprint::printd;
 #endif
