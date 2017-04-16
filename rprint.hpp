@@ -25,11 +25,15 @@ namespace rprint{
 
 //print functions
 template <class T, T& out, class... F>
+void print(F&&... f);
+template <class T, T& out, class... F>
 void printl(F&&... f);
 template <class T, T& out, class... F>
 void printc(F&&... f);
 template <class T, T& out, class... F>
 void prints(F&&... f);
+template <std::ostream& out, class... F>
+void print(F&&... f);
 template <std::ostream& out = std::cout, class... F>
 void printl(F&&... f);
 template <std::ostream& out = std::cout, class... F>
@@ -265,12 +269,15 @@ auto _print(C& out, F f, T&& t) -> decltype(ifAll(!outable(out, t), iterable(t))
     auto color = getColor(nest);
     _printc(out, f, color, '[');
     if(!bottom && RP_ELEMLIMIT == 0){ _print(out, f, _Char{'\n'}); }
-    for(const auto& elem : t){
+    for(auto ite = t.begin(); ite != t.end(); ite++){
+        auto& elem = *ite;
         if(nestPrint){
             for(int i=0;i<=nest;i++){ _print(out, f, _String{"	"}); }
         }
         __print(out, f, elem);
-        if(&elem == &*t.rbegin()){
+        auto e = ite;
+        e++;
+        if(&*e == &*t.end()){
             _printc(out, f, color, ']');
         }else{
             __print(out, f, _String{nestPrint ? "\n" : " "});
@@ -338,12 +345,16 @@ void _sprint(A&&... args){
 
 // template <std::ostream& out, class... F>
 // void printcs(F&&... f){ sprint<',', out>(std::forward<F>(f)...); }
+// template <class T, T& out, class... F>
+// void print(F&&... f){ print<T, out>(std::forward<F>(f)...); }
 template <class T, T& out, class... F>
 void printl(F&&... f){ sprint<'\n', T, out>(std::forward<F>(f)...); }
 template <class T, T& out, class... F>
 void printc(F&&... f){ sprint<',', T, out>(std::forward<F>(f)...); }
 template <class T, T& out, class... F>
 void prints(F&&... f){ sprint<' ', T, out>(std::forward<F>(f)...); }
+template <std::ostream& out, class... F>
+void print(F&&... f){ print<std::ostream, out>(std::forward<F>(f)...); }
 template <std::ostream& out, class... F>
 void printl(F&&... f){ printl<std::ostream, out>(std::forward<F>(f)...); }
 template <std::ostream& out, class... F>
@@ -458,6 +469,7 @@ inline void testPrint(){
 using rprint::testPrint;
 #endif
 using rprint::olambda;
+using rprint::print;
 using rprint::printl;
 using rprint::printc;
 using rprint::prints;
