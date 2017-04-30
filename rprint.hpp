@@ -1,6 +1,8 @@
 #pragma once
 #include<iostream>
 #include<vector>
+#include<iomanip>
+#include<queue>
 
 #include<numeric>
 #include<map>
@@ -12,7 +14,9 @@ namespace rprint{
 //params
 #ifndef RP_CUSTOM
 // #define RP_DEBUG
+#ifndef RP_NOCOLOR
 #define RP_USECOLOR
+#endif
 #define RP_WITHOUTNS
 #endif
 
@@ -24,14 +28,14 @@ namespace rprint{
 #define atov(vec) rprint::_atov(rprint::elems(sizeof(vec), vec), vec)
 
 //print functions
-template <class T, T& out, class... F>
-void print(F&&... f);
-template <class T, T& out, class... F>
-void printl(F&&... f);
-template <class T, T& out, class... F>
-void printc(F&&... f);
-template <class T, T& out, class... F>
-void prints(F&&... f);
+// template <class T, T& out, class... F>
+// void print(F&&... f);
+// template <class T, T& out, class... F>
+// void printl(F&&... f);
+// template <class T, T& out, class... F>
+// void printc(F&&... f);
+// template <class T, T& out, class... F>
+// void prints(F&&... f);
 template <std::ostream& out, class... F>
 void print(F&&... f);
 template <std::ostream& out = std::cout, class... F>
@@ -40,8 +44,10 @@ template <std::ostream& out = std::cout, class... F>
 void printc(F&&... f);
 template <std::ostream& out = std::cout, class... F>
 void prints(F&&... f);
+template <std::ostream& out = std::cout, class... F>
+void printa(std::mutex& m, F&&... f);
 // #define printd(var) prints(#var, var);
-#define printa(arr) prints(atov(arr))
+#define printArr(arr) prints(atov(arr))
 #define printd(...) prints(#__VA_ARGS__, __VA_ARGS__)
 // #define printd(...) prints(#__VA_ARGS__), printc(__VA_ARGS__)
 
@@ -171,7 +177,7 @@ tFalse isPair(...);
 
 tFalse vtPositive(...);
 template <class... S>
-auto vtPositive(S...) -> typename std::enable_if_t<sizeof...(S) != 0, tTrue>;
+auto vtPositive(S&&...) -> typename std::enable_if_t<sizeof...(S) != 0, tTrue>;
 
 tFalse tAnd(...);
 template <class S>
@@ -246,7 +252,11 @@ auto _atov(int size, T (*arr)[S]){
 
 template <class C, class F, class S, class T>
 auto _printc(C& out, F f, S&& color, T&& t){
+#ifdef RP_USECOLOR
     __print(out, f, color, _Raw<T>{t}, _reset);
+#else
+    __print(out, f, _Raw<T>{t});
+#endif
 }
 
 template <class C, class F, class T>
@@ -342,17 +352,23 @@ void _sprint(A&&... args){
     sprint<suffix, C, out>(std::forward<A>(args)...);
 }
 
+template <char suffix, class C = std::ostream, C& out = std::cout, class... A>
+void sprintHook(A&&... args){
+    sprint<suffix, C, out>(std::forward<A>(args)...);
+}
 
 // template <std::ostream& out, class... F>
 // void printcs(F&&... f){ sprint<',', out>(std::forward<F>(f)...); }
 // template <class T, T& out, class... F>
 // void print(F&&... f){ print<T, out>(std::forward<F>(f)...); }
+
 template <class T, T& out, class... F>
-void printl(F&&... f){ sprint<'\n', T, out>(std::forward<F>(f)...); }
+void printl(F&&... f){ sprintHook<'\n', T, out>(std::forward<F>(f)...); }
 template <class T, T& out, class... F>
-void printc(F&&... f){ sprint<',', T, out>(std::forward<F>(f)...); }
+void printc(F&&... f){ sprintHook<',', T, out>(std::forward<F>(f)...); }
 template <class T, T& out, class... F>
-void prints(F&&... f){ sprint<' ', T, out>(std::forward<F>(f)...); }
+void prints(F&&... f){ sprintHook<' ', T, out>(std::forward<F>(f)...); }
+
 template <std::ostream& out, class... F>
 void print(F&&... f){ print<std::ostream, out>(std::forward<F>(f)...); }
 template <std::ostream& out, class... F>
@@ -361,6 +377,11 @@ template <std::ostream& out, class... F>
 void printc(F&&... f){ printc<std::ostream, out>(std::forward<F>(f)...); }
 template <std::ostream& out, class... F>
 void prints(F&&... f){ prints<std::ostream, out>(std::forward<F>(f)...); }
+template <std::ostream& out, class... F>
+void printa(std::mutex& m, F&&... f){
+    std::lock_guard<std::mutex> lk(m);
+    prints<std::ostream, out>(std::forward<F>(f)...);
+}
 
 //TODO ok?
 // template <std::ostream& out = std::cout, class T, class... F>
@@ -381,11 +402,62 @@ void prints(F&&... f){ prints<std::ostream, out>(std::forward<F>(f)...); }
 //     info(t...);
 // }
 
+//printBTree(root, &Node::val);
+template <class Node>
+int maxDepth(Node* n, Node* Node::* leftElem = &Node::l, Node* Node::* rightElem = &Node::r){
+    return std::max(n->*leftElem ? maxDepth(n->*leftElem, leftElem, rightElem) : 0, n->*rightElem ? maxDepth(n->*rightElem, leftElem, rightElem) : 0) + 1;
+}
+template <class Node, class V = int, char empty = 'x'>
+void printBTree(Node* root, V Node::* value = &Node::value, Node* Node::* leftElem = &Node::l, Node* Node::* rightElem = &Node::r){
+    int depth = maxDepth(root, leftElem, rightElem);
+    if(depth >= 10){ return; }
+    int width = 1 << depth;
+    int margin = width / 2;
+    std::queue<Node*> q;
+    q.push(root);
+    for(int i=0;i<depth;i++){
+        for(int j=0;j<(1<<i);j++){
+            if(q.empty()){ break; }
+            Node* n = q.front(); q.pop();
+            if(n){
+                std::cout << std::setw(margin >> i) << n->*value;
+                q.push(n->*leftElem);
+                q.push(n->*rightElem);
+            }else{
+                std::cout << std::setw(margin >> i) << empty;
+                q.push(nullptr);
+                q.push(nullptr);
+            }
+            for(int k=0;k<(margin>>i);k++){ std::cout << ' '; }
+        }
+        std::cout << '\n';
+    }
+}
 
 
 #ifdef RP_DEBUG
 struct _Elem{
     int x, y;
+};
+struct _Node{
+    int value;
+    _Node *l = nullptr, *r = nullptr;
+    _Node(int v): value(v){ }
+    void add(int v){
+        if(v <= value){
+            if(l){
+                l->add(v);
+            }else{
+                l = new _Node(v);
+            }
+        }else{
+            if(r){
+                r->add(v);
+            }else{
+                r = new _Node(v);
+            }
+        }
+    }
 };
 inline void testPrint(){
     using namespace std;
@@ -448,9 +520,9 @@ inline void testPrint(){
     // prints(decltype(outable<std::cout>([](auto a){;}))::value);
     int c[2][3][4];
     prints(atov(c));
-    printa(c);
+    printArr(c);
     int d[10];
-    printa(d);
+    printArr(d);
     printd(v3);
     printd(v2, p);
     prints(1s);
@@ -459,6 +531,12 @@ inline void testPrint(){
     prints(1ns);
     prints<cerr>(1, 2, 3);
     prints<ostream, cerr>(1, 2, 3);
+    _Node* root = new _Node(10);
+    vector<int> v6 = {5, 13, 4, 2, 14, 13};
+    for(int i : v6){
+        root->add(i);
+    }
+    printBTree(root);
 }
 #endif
 
@@ -473,5 +551,7 @@ using rprint::print;
 using rprint::printl;
 using rprint::printc;
 using rprint::prints;
+using rprint::printa;
 // using rprint::printd;
+using rprint::printBTree;
 #endif
