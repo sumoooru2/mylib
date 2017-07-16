@@ -8,6 +8,7 @@
 #include<map>
 #include<set>
 #include<chrono>
+#include<mutex>
 
 namespace rprint{
 
@@ -46,9 +47,12 @@ template <std::ostream& out = std::cout, class... F>
 void prints(F&&... f);
 template <std::ostream& out = std::cout, class... F>
 void printa(std::mutex& m, F&&... f);
+template <std::ostream& out = std::cout, class... F>
+void printb(F&&... f);
 // #define printd(var) prints(#var, var);
 #define printArr(arr) prints(atov(arr))
 #define printd(...) prints(#__VA_ARGS__, __VA_ARGS__)
+#define printde(...) prints<cerr>(#__VA_ARGS__, __VA_ARGS__)
 // #define printd(...) prints(#__VA_ARGS__), printc(__VA_ARGS__)
 
 #ifdef RP_DEBUG
@@ -377,11 +381,14 @@ template <std::ostream& out, class... F>
 void printc(F&&... f){ printc<std::ostream, out>(std::forward<F>(f)...); }
 template <std::ostream& out, class... F>
 void prints(F&&... f){ prints<std::ostream, out>(std::forward<F>(f)...); }
+//TODO combination
 template <std::ostream& out, class... F>
 void printa(std::mutex& m, F&&... f){
     std::lock_guard<std::mutex> lk(m);
     prints<std::ostream, out>(std::forward<F>(f)...);
 }
+template <std::ostream& out, class... F>
+void printb(F&&... f){ prints(std::bitset<64>(f)...); }
 
 //TODO ok?
 // template <std::ostream& out = std::cout, class T, class... F>
@@ -405,6 +412,7 @@ void printa(std::mutex& m, F&&... f){
 //printBTree(root, &Node::val);
 template <class Node>
 int maxDepth(Node* n, Node* Node::* leftElem = &Node::l, Node* Node::* rightElem = &Node::r){
+    if(!n){ return 1; } // ?
     return std::max(n->*leftElem ? maxDepth(n->*leftElem, leftElem, rightElem) : 0, n->*rightElem ? maxDepth(n->*rightElem, leftElem, rightElem) : 0) + 1;
 }
 template <class Node, class V = int, char empty = 'x'>
@@ -505,7 +513,8 @@ inline void testPrint(){
     _Elem e{1, 2};
     prints([](ostream& out, _Elem e){out << e.x; }, e);
     vector<_Elem> ve(3, {1, 2});
-    prints([](ostream& out, _Elem e){out << e.x; }, ve);
+    // prints([](ostream& out, _Elem e){out << e.x; }, 1, ve, 1);
+    prints(olambda([](ostream& out, auto i){ out << i; }, [](ostream& out, _Elem e){out << e.x; }), 1, ve, 1);
     set<pair<int, int>> sp = {{1, 2}};
     prints(sp);
     printd(v.back());
@@ -552,6 +561,7 @@ using rprint::printl;
 using rprint::printc;
 using rprint::prints;
 using rprint::printa;
+using rprint::printb;
 // using rprint::printd;
 using rprint::printBTree;
 #endif

@@ -10,20 +10,6 @@
 #include<sstream>
 #include<vector>
 using namespace std;
-using uint = unsigned int;
-using ll = long long;
-const int M = 1e9 + 7;
-const ll MLL = 1e18L + 9;
-#pragma unused(M)
-#pragma unused(MLL)
-#ifdef LOCAL
-#include"rprint.hpp"
-#else
-template <class... T> void printl(T&&...){ }
-template <class... T> void printc(T&&...){ }
-template <class... T> void prints(T&&...){ }
-template <class... T> void printd(T&&...){ }
-#endif
 
 struct BigInt{
     //TODO BCD
@@ -194,7 +180,7 @@ struct BigInt{
 };
 BigInt BigInt::lastMod;
 
-int main(){
+int test(){
     // testPrint();
     BigInt bi(7);
     // prints(bi.data);
