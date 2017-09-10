@@ -3,6 +3,7 @@
 #include<vector>
 #include<iomanip>
 #include<queue>
+#include<unordered_set>
 
 #include<numeric>
 #include<map>
@@ -442,11 +443,159 @@ void printBTree(Node* root, V Node::* value = &Node::value, Node* Node::* leftEl
     }
 }
 
+template <class Node, class V = int, char empty = 'x'>
+void printBTree2(Node* root, V Node::* value = &Node::value, Node* Node::* leftElem = &Node::l, Node* Node::* rightElem = &Node::r){
+    int depth = maxDepth(root, leftElem, rightElem);
+    if(depth >= 10){ return; }
+    int width = 1 << depth;
+    width <<= 2;
+    int margin = width / 2;
+    std::queue<Node*> q;
+    q.push(root);
+    for(int i=0;i<depth;i++){
+        for(int j=0;j<(1<<i);j++){
+            // if(q.empty()){ break; }
+            Node* n = q.front(); q.pop();
+            if(n){
+                std::cout << std::setw(margin >> i) << n->*value;
+                q.push(n->*leftElem);
+                q.push(n->*rightElem);
+            }else{
+                std::cout << std::setw(margin >> i) << empty;
+                q.push(nullptr);
+                q.push(nullptr);
+            }
+            for(int k=0;k<(margin>>i);k++){ std::cout << ' '; }
+        }
+        std::cout << '\n';
+        if(i + 1 == depth){ break; }
+        for(int j=0;j<(1<<i);j++){
+            for(int k=0;k<(margin>>i)/2;k++){ std::cout << ' '; }
+            for(int k=2;k<(margin>>i)/2;k++){ std::cout << '_'; }
+            // std::cout << std::setw((margin >> i) + 1) << "/ \\";
+            std::cout << "/ \\";
+            for(int k=2;k<(margin>>i)/2;k++){ std::cout << '_'; }
+            for(int k=-1;k<(margin>>i)/2;k++){ std::cout << ' '; }
+        }
+        std::cout << '\n';
+    }
+}
+
+//TODO refactor
+template <class Node, class V = int>
+void printTree(Node* root, V Node::* value = &Node::value){
+    struct N{
+        std::string value;
+        int width;
+        std::vector<N*> dests;
+        N(int v): value(std::to_string(v)), width(){ }
+        int setWidth(){
+            for(N* n : dests){
+                width += n->setWidth();
+            }
+            width += 1;
+            width = std::max(width, int(value.size() + 1));
+            return width;
+        }
+    };
+
+    std::vector<N*> nodes = {new N(root->*value)};
+    std::queue<std::pair<Node*, N*>> q;
+    q.push({root, nodes[0]});
+    std::unordered_set<Node*> us;
+    while(q.size()){
+        Node* n = q.front().first;
+        N* n2 = q.front().second;
+        q.pop();
+        if(us.count(n)){ continue; }
+        us.insert(n);
+        for(Node* d : n->dests){
+            if(us.count(d)){ continue; }
+            nodes.push_back(new N(d->*value));
+            n2->dests.push_back(nodes.back());
+            q.emplace(d, nodes.back());
+        }
+    }
+    nodes[0]->setWidth();
+
+    std::queue<std::pair<N*, int>> q2, next;
+    q2.emplace(nodes[0], 0);
+    std::vector<std::string> elems, lines;
+    std::vector<int> cs, cs2;
+    while(1){
+        int pos = 0;
+        std::vector<int> ps;
+        std::stringstream ss;
+        while(q2.size()){
+            N* n = q2.front().first;
+            int dpos = q2.front().second;
+            q2.pop();
+            std::string s = n->value;
+            if(dpos > pos){
+                ss << std::setw(dpos - pos) << "";
+                pos = dpos;
+            }
+            ss << std::setw((n->width - s.size()) / 2) << ""
+                << s
+                << std::setw((n->width - s.size() + 1) / 2) << "";
+            // ss << setfill(' ');
+            for(N* d : n->dests){
+                next.emplace(d, pos);
+            }
+            cs2.push_back(n->dests.size());
+            ps.push_back(pos + n->width / 2);
+            pos += n->width;
+        }
+        elems.push_back(ss.str());
+
+        ss.clear();
+        ss.str("");
+        int p = 0;
+        for(uint i = 0; i < cs.size(); i++){
+            // printd(p, ps, cs, ps[p + cs[i] - 1] - ps[p], p + cs[i] - 1);
+            if(cs[i]){
+                ss << std::setw(ps[p] - ps[p - 1]) << "";
+                if(ps[p + cs[i] - 1] - ps[p] == 0){
+                    ss << '|';
+                }else{
+                    for(int j = 0; j < ps[p + cs[i] - 1] - ps[p]; j++){
+                        ss << '-';
+                    }
+                }
+                p += cs[i];
+            }
+        }
+        cs.swap(cs2);
+        cs2.clear();
+        lines.push_back(ss.str());
+
+        if(next.empty()){ break; }
+        q2.swap(next);
+
+        int pos2 = 0;
+        ss.clear();
+        ss.str("");
+        for(uint i = 0; i < ps.size(); i++){
+            ss << std::setw(ps[i] - pos2 - 1) << "" << '|';
+            pos2 = ps[i];
+        }
+        lines.push_back(ss.str());
+    }
+    // printd(elems, lines);
+    for(uint i = 0; i < elems.size(); i++){
+        std::cout << elems[i] << '\n';
+        if(i + 1 == elems.size()){ break; }
+        std::cout << lines[2 * i + 1] << '\n';
+        std::cout << lines[2 * i + 2] << '\n';
+    }
+}
+
 
 #ifdef RP_DEBUG
 struct _Elem{
     int x, y;
 };
+
 struct _Node{
     int value;
     _Node *l = nullptr, *r = nullptr;
@@ -467,6 +616,25 @@ struct _Node{
         }
     }
 };
+
+struct Node{
+    int value = 1;
+    std::vector<Node*> dests;
+    void add(Node* n){
+        dests.push_back(n);
+    }
+    void add2(Node* n){
+        add(n);
+        n->add(this);
+    }
+    void dfs(Node* from = nullptr){
+        for(Node* d : dests){
+            if(d == from){ continue; }
+            d -> dfs(this);
+        }
+    }
+};
+
 inline void testPrint(){
     using namespace std;
     string s = "abc";
@@ -546,6 +714,21 @@ inline void testPrint(){
         root->add(i);
     }
     printBTree(root);
+    printBTree2(root);
+    vector<Node> nodes(10);
+    // mt19937 mt(1);
+    for(int i = 0; i < 10; i++){
+        nodes[i].value = i;// + mt() % 10000;
+    }
+    nodes[0].add2(&nodes[1]);
+    nodes[0].add2(&nodes[2]);
+    nodes[1].add2(&nodes[3]);
+    nodes[1].add2(&nodes[4]);
+    nodes[2].add2(&nodes[5]);
+    nodes[2].add2(&nodes[6]);
+    nodes[6].add2(&nodes[7]);
+    nodes[1].add2(&nodes[8]);
+    printTree(&nodes[0]);
 }
 #endif
 
@@ -564,4 +747,6 @@ using rprint::printa;
 using rprint::printb;
 // using rprint::printd;
 using rprint::printBTree;
+using rprint::printBTree2;
+using rprint::printTree;
 #endif
