@@ -1,9 +1,10 @@
 #pragma once
+#include<bitset>
 #include<iomanip>
 #include<iostream>
 #include"rptree.hpp"
 
-// #include<chrono>
+#include<chrono>
 // #include<mutex>
 
 namespace rprint2{

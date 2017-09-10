@@ -1,14 +1,18 @@
 #pragma once
 #include<iostream>
+#include<memory>
 #include<queue>
 #include<unordered_set>
 #include<vector>
 
+namespace rptree{
+
 template <class Node, class F, class V = int>
 void printTree(std::ostream& out, F&& f, Node* root, V Node::* value = &Node::value){
+    struct N;
     using std::vector; using std::string; using std::queue;
     using std::shared_ptr; using std::make_shared;
-    struct N;
+    using uint = unsigned int;
     using Np = shared_ptr<N>;
     struct N{
         string value;
@@ -88,3 +92,8 @@ template <class Node, class V = int>
 void printTree(std::ostream& out, Node* root, V Node::* value = &Node::value){
     printTree(out, [](std::ostream& out, auto e){ out << e; }, root, value);
 }
+
+} // namespace rptree
+
+using rptree::printTree;
+
