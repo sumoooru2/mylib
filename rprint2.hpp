@@ -44,7 +44,8 @@ H2(rp_str,      !COND(coutable) && COND(strCastable));
 H2(rp_iter,     !COND(coutable) && COND(iterable));
 H2(rp_pair,     COND(isPair));
 H2(rp_array,    COND(isArray));
-H2(rp_root,    COND(isRoot));
+H2(rp_root,     COND(isRoot));
+H2(rp_other,    !COND(coutable) && !COND(strCastable) && !COND(iterable) && !COND(isPair) && !COND(isArray) && !COND(isRoot));
 
 template <class F, class A>
 void _print(ostream& out, F&& f, A&&);
@@ -67,7 +68,9 @@ CHRONO(:nanoseconds, ns)
 //--------------------------------------------------------------------------------
 
 template <class F, class I>
-auto print_container(ostream& out, F&& f, I&& b, I&& e);
+void print_container(ostream& out, F&& f, I&& b, I&& e);
+template <class A>
+void print_something(ostream& out, A&& a);
 
 template <class F, class T>
 void print(ostream& out, F&&, Raw<T> r){
@@ -102,6 +105,10 @@ template <class F, size_t N>
 void print(ostream& out, F&& f, const char (&a)[N]){
     f(out, a);
 }
+template <class F, class A>
+auto print(ostream& out, F&&, A&& a) -> decltype(rp_other(a)){
+    print_something(out, a);
+}
 
 template <class F, class I>
 auto print_containerT(ostream& out, F&& f, I&& b, I&& e){
@@ -114,7 +121,7 @@ constexpr int colorLen = 5;
 static const String reset{"\e[00m"};
 static const String colors[colorLen] = {{"\e[36m"}, {"\e[32m"}, {"\e[31m"}, {"\e[35m"}, {"\e[33m"}};
 template <class F, class I>
-auto print_container(ostream& out, F&& f, I&& b, I&& e){
+void print_container(ostream& out, F&& f, I&& b, I&& e){
     if(cnt){
         _print(out, f, Char{'\n'});
         for(int i = 0; i < cnt; i++){
@@ -129,6 +136,28 @@ auto print_container(ostream& out, F&& f, I&& b, I&& e){
     }
     cnt = (colorLen + cnt - 1) % colorLen;
     _print(out, f, colors[cnt], Char{']'}, reset);
+}
+
+template <class T, class T2 = T, class A>
+void _print_something(ostream& out, uint bits, A&& arr){
+    for(uint i = 0; i < bits / sizeof(T); i++){
+        out << std::setw(4 * sizeof(T)) << (T2)((T*)arr)[i];
+    }
+    out << '\n';
+}
+template <class A>
+void print_something(ostream& out, A&& a){
+    out << '\n';
+    out << std::setw(2 * sizeof(a)) << std::setfill('_') << "something size ";
+    out << std::setw(2 * sizeof(a)) << std::left << sizeof(a) << std::setfill(' ') << std::right << '\n';
+    // out << std::setw(2 * sizeof(a)) << sizeof(a) << std::setfill(' ') << '\n';
+    auto ptr = (unsigned char*)(void*)&a;
+    out << std::hex;
+    _print_something<uint8_t, uint32_t>(out, sizeof(a), ptr);
+    out << std::dec;
+    _print_something<uint8_t, uint32_t>(out, sizeof(a), ptr);
+    _print_something<uint32_t>(out, sizeof(a), ptr);
+    _print_something<double>(out, sizeof(a), ptr);
 }
 
 //--------------------------------------------------------------------------------
@@ -287,6 +316,12 @@ inline void testPrint(){
     nodes[1].add2(&nodes[8]);
     // printTree(cout, &nodes[0]);
     prints(&nodes[0], &nodes[1]);
+
+    struct E2 {
+        double v = 1.2;
+        pair<int, int> p = {2, 3};
+    } a;
+    prints(a, a);
 }
 
 #endif
