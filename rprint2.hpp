@@ -26,6 +26,7 @@ using String = Raw<const char*>;
     template <class... A>\
     false_type func(A&&...)
 H1(coutable,    std::cout << a);
+H1(coutable2,   a >> std::cout);
 H1(iterable,    (a.begin(), a.end()));
 H1(strCastable, (string)a);
 H1(isPair,      (a.first, a.second));
@@ -40,12 +41,13 @@ H1(isRoot,      (a->dests));
     template <class A>\
     auto func(A&& a) -> std::enable_if_t<cond, void>
 H2(rp_cout,     !COND(isArray) && !COND(isRoot) && COND(coutable));
-H2(rp_str,      !COND(coutable) && COND(strCastable));
-H2(rp_iter,     !COND(coutable) && COND(iterable));
+H2(rp_cout2,    !COND(isArray) && !COND(isRoot) && COND(coutable2));
+H2(rp_str,      !COND(coutable) && !COND(coutable2) && COND(strCastable));
+H2(rp_iter,     !COND(coutable) && !COND(coutable2) && COND(iterable));
 H2(rp_pair,     COND(isPair));
 H2(rp_array,    COND(isArray));
 H2(rp_root,     COND(isRoot));
-H2(rp_other,    !COND(coutable) && !COND(strCastable) && !COND(iterable) && !COND(isPair) && !COND(isArray) && !COND(isRoot));
+H2(rp_other,    !COND(coutable) && !COND(coutable2) && !COND(strCastable) && !COND(iterable) && !COND(isPair) && !COND(isArray) && !COND(isRoot));
 
 template <class F, class A>
 void _print(ostream& out, F&& f, A&&);
@@ -80,6 +82,11 @@ void print(ostream& out, F&&, Raw<T> r){
 template <class F, class A>
 auto print(ostream& out, F&& f, A&& a) -> decltype(rp_cout(a)){
     f(out, a);
+}
+//TODO
+template <class F, class A>
+auto print(ostream& out, F&&, A&& a) -> decltype(rp_cout2(a)){
+    a >> out;
 }
 template <class F, class A>
 auto print(ostream& out, F&& f, A&& a) -> decltype(rp_str(a)){
@@ -214,6 +221,8 @@ void printu(ostream& out, F&& f, As&&... as){
 
 //--------------------------------------------------------------------------------
 
+#ifdef LOCAL
+
 using rprint2::prints;
 using rprint2::printe;
 using rprint2::printw;
@@ -222,6 +231,9 @@ using rprint2::printb;
 using rprint2::printu;
 
 #define printd(...) prints(#__VA_ARGS__, __VA_ARGS__)
+#define printde(...) printe(#__VA_ARGS__, __VA_ARGS__)
+
+#endif
 
 //--------------------------------------------------------------------------------
 

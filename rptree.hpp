@@ -90,7 +90,7 @@ void printTree(std::ostream& out, F&& f, Node* root, V Node::* value = &Node::va
 
 template <class Node, class V = int>
 void printTree(std::ostream& out, Node* root, V Node::* value = &Node::value){
-    printTree(out, [](std::ostream& out, auto e){ out << e; }, root, value);
+    printTree(out, [](std::ostream& _out, auto e){ _out << e; }, root, value);
 }
 
 } // namespace rptree
