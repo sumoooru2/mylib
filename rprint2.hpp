@@ -34,29 +34,34 @@ template <class A, size_t N>
 true_type isArray(A (&)[N]);
 template <class... A>
 false_type isArray(A&&...);
+template <class... A>
+true_type isTuple(std::tuple<A...>);
+template <class... A>
+false_type isTuple(A&&...);
 H1(isRoot,      (a->dests));
 
 #define COND(func) std::is_same<true_type, decltype(func(forward<A>(a)))>::value
 #define H2(func, cond)\
     template <class A>\
     auto func(A&& a) -> std::enable_if_t<cond, void>
-H2(rp_cout,     !COND(isArray) && !COND(isRoot) && COND(coutable));
+H2(rp_cout,     !COND(coutable2) && !COND(isArray) && !COND(isRoot) && COND(coutable));
 H2(rp_cout2,    !COND(isArray) && !COND(isRoot) && COND(coutable2));
 H2(rp_str,      !COND(coutable) && !COND(coutable2) && COND(strCastable));
-H2(rp_iter,     !COND(coutable) && !COND(coutable2) && COND(iterable));
+H2(rp_iter,     !COND(coutable) && !COND(coutable2) && !COND(strCastable) && COND(iterable));
 H2(rp_pair,     COND(isPair));
+H2(rp_tuple,     COND(isTuple));
 H2(rp_array,    COND(isArray));
 H2(rp_root,     COND(isRoot));
-H2(rp_other,    !COND(coutable) && !COND(coutable2) && !COND(strCastable) && !COND(iterable) && !COND(isPair) && !COND(isArray) && !COND(isRoot));
+H2(rp_other,    !COND(coutable) && !COND(coutable2) && !COND(strCastable) && !COND(iterable) && !COND(isPair) && !COND(isArray) && !COND(isRoot) && !COND(isTuple));
 
 template <class F, class A>
-void _print(ostream& out, F&& f, A&&);
+void __print(ostream& out, F&& f, A&&);
 
 //--------------------------------------------------------------------------------
 
 #define CHRONO(unit, ex)\
     template <class F>\
-    auto print(ostream& out, F&& f, std::chrono:##unit&& a){\
+    auto _print(ostream& out, F&& f, std::chrono:##unit&& a){\
         f(out, a.count());\
         f(out, #ex);\
     }
@@ -73,54 +78,65 @@ template <class F, class I>
 void print_container(ostream& out, F&& f, I&& b, I&& e);
 template <class A>
 void print_something(ostream& out, A&& a);
+template <int N = 0, class F, class... S>
+auto print_tuple(ostream& out, F&& f, std::tuple<S...> t) -> std::enable_if_t< N >= sizeof...(S), void>;
+template <int N = 0, class F, class... S>
+auto print_tuple(ostream& out, F&& f, std::tuple<S...> t) -> std::enable_if_t< N < sizeof...(S), void>;
 
 template <class F, class T>
-void print(ostream& out, F&&, Raw<T> r){
+void _print(ostream& out, F&&, Raw<T> r){
     out << r.t;
 }
 
 template <class F, class A>
-auto print(ostream& out, F&& f, A&& a) -> decltype(rp_cout(a)){
+auto _print(ostream& out, F&& f, A&& a) -> decltype(rp_cout(a)){
     f(out, a);
 }
 //TODO
 template <class F, class A>
-auto print(ostream& out, F&&, A&& a) -> decltype(rp_cout2(a)){
+auto _print(ostream& out, F&&, A&& a) -> decltype(rp_cout2(a)){
     a >> out;
 }
 template <class F, class A>
-auto print(ostream& out, F&& f, A&& a) -> decltype(rp_str(a)){
+auto _print(ostream& out, F&& f, A&& a) -> decltype(rp_str(a)){
     f(out, (string)a);
 }
 template <class F, class P>
-auto print(ostream& out, F&& f, P&& p) -> decltype(rp_pair(p)){
-    _print(out, f, Char{'{'}, p.first, Char{','}, p.second, Char{'}'});
+auto _print(ostream& out, F&& f, P&& p) -> decltype(rp_pair(p)){
+    __print(out, f, Char{'{'}, p.first, Char{','}, p.second, Char{'}'});
 }
 template <class F, class A>
-auto print(ostream& out, F&& f, A&& a) -> decltype(rp_root(a)){
+auto _print(ostream& out, F&& f, A&& a) -> decltype(rp_root(a)){
     printTree(out, f, a);
 }
 template <class F, class A, size_t N>
-void print(ostream& out, F&& f, A (&a)[N]){
+void _print(ostream& out, F&& f, A (&a)[N]){
     print_container(out, f, &a[0], &a[0] + N);
 }
 template <class F, class C>
-auto print(ostream& out, F&& f, C&& c) -> decltype(rp_iter(c)){
+auto _print(ostream& out, F&& f, C&& c) -> decltype(rp_iter(c)){
     print_container(out, f, c.begin(), c.end());
 }
 template <class F, size_t N>
-void print(ostream& out, F&& f, const char (&a)[N]){
+void _print(ostream& out, F&& f, const char (&a)[N]){
     f(out, a);
 }
+template <class F, class T>
+auto _print(ostream& out, F&& f, T&& t) -> decltype(rp_tuple(t)){
+    // __print(out, f, Char{'{'}, p.first, Char{','}, p.second, Char{'}'});
+    f(out, '{');
+    print_tuple(out, f, t);
+    f(out, '}');
+}
 template <class F, class A>
-auto print(ostream& out, F&&, A&& a) -> decltype(rp_other(a)){
+auto _print(ostream& out, F&&, A&& a) -> decltype(rp_other(a)){
     print_something(out, a);
 }
 
 template <class F, class I>
 auto print_containerT(ostream& out, F&& f, I&& b, I&& e){
     for(auto& i = b; i != e; i++){
-        _print(out, f, Char{' '}, *i);
+        __print(out, f, Char{' '}, *i);
     }
 }
 static int cnt = 0;
@@ -130,23 +146,23 @@ static const String colors[colorLen] = {{"\e[36m"}, {"\e[32m"}, {"\e[31m"}, {"\e
 template <class F, class I>
 void print_container(ostream& out, F&& f, I&& b, I&& e){
     if(cnt){
-        _print(out, f, Char{'\n'});
+        __print(out, f, Char{'\n'});
         for(int i = 0; i < cnt; i++){
-            _print(out, f, Char{'	'});
+            __print(out, f, Char{'	'});
         }
     }
-    _print(out, f, colors[cnt], Char{'['}, reset);
+    __print(out, f, colors[cnt], Char{'['}, reset);
     cnt = (cnt + 1) % colorLen;
     if(b != e){
-        _print(out, f, *b);
+        __print(out, f, *b);
         print_containerT(out, f, ++b, e);
     }
     cnt = (colorLen + cnt - 1) % colorLen;
-    _print(out, f, colors[cnt], Char{']'}, reset);
+    __print(out, f, colors[cnt], Char{']'}, reset);
 }
 
 template <class T, class T2 = T, class A>
-void _print_something(ostream& out, uint bits, A&& arr){
+void __print_something(ostream& out, uint bits, A&& arr){
     for(uint i = 0; i < bits / sizeof(T); i++){
         out << std::setw(4 * sizeof(T)) << (T2)((T*)arr)[i];
     }
@@ -160,60 +176,72 @@ void print_something(ostream& out, A&& a){
     // out << std::setw(2 * sizeof(a)) << sizeof(a) << std::setfill(' ') << '\n';
     auto ptr = (unsigned char*)(void*)&a;
     out << std::hex;
-    _print_something<uint8_t, uint32_t>(out, sizeof(a), ptr);
+    __print_something<uint8_t, uint32_t>(out, sizeof(a), ptr);
     out << std::dec;
-    _print_something<uint8_t, uint32_t>(out, sizeof(a), ptr);
-    _print_something<uint32_t>(out, sizeof(a), ptr);
-    _print_something<double>(out, sizeof(a), ptr);
+    __print_something<uint8_t, uint32_t>(out, sizeof(a), ptr);
+    __print_something<uint32_t>(out, sizeof(a), ptr);
+    __print_something<double>(out, sizeof(a), ptr);
+}
+template <int N, class F, class... S>
+auto print_tuple(ostream&, F&&, std::tuple<S...>) -> std::enable_if_t< N >= sizeof...(S), void> {
+}
+template <int N, class F, class... S>
+auto print_tuple(ostream& out, F&& f, std::tuple<S...> t) -> std::enable_if_t< N < sizeof...(S), void> {
+    __print(out, f, std::get<N>(t), Char{','});
+    print_tuple<N + 1>(out, f, t);
 }
 
 //--------------------------------------------------------------------------------
 
 template <class F, class A>
-void _print(ostream& out, F&& f, A&& a){
-    print(out, f, forward<A>(a));
+void __print(ostream& out, F&& f, A&& a){
+    _print(out, f, forward<A>(a));
 }
 template <class F, class A, class... As>
-void _print(ostream& out, F&& f, A&& a, As&&... as){
-    print(out, f, forward<A>(a));
-    _print(out, f, forward<As>(as)...);
+void __print(ostream& out, F&& f, A&& a, As&&... as){
+    _print(out, f, forward<A>(a));
+    __print(out, f, forward<As>(as)...);
 }
 
 template <class F, class A>
-void _prints(ostream& out, F&& f, A&& a){
-    _print(out, f, forward<A>(a), Char{'\n'});
+void __prints(ostream& out, F&& f, A&& a){
+    __print(out, f, forward<A>(a), Char{'\n'});
 }
 template <class F, class A1, class... As>
-void _prints(ostream& out, F&& f, A1&& a, As&&... as){
-    _print(out, f, forward<A1>(a), Char{' '});
-    _prints(out, f, forward<As>(as)...);
+void __prints(ostream& out, F&& f, A1&& a, As&&... as){
+    __print(out, f, forward<A1>(a), Char{' '});
+    __prints(out, f, forward<As>(as)...);
 }
 
 //--------------------------------------------------------------------------------
 
 template <class... As>
+void print(As&&... as){
+    __print(std::cout, [](ostream& out, auto e){ out << e; }, forward<As>(as)...);
+}
+template <class... As>
 void prints(As&&... as){
-    _prints(std::cout, [](ostream& out, auto e){ out << e; }, forward<As>(as)...);
+    __prints(std::cout, [](ostream& out, auto e){ out << e; }, forward<As>(as)...);
 }
 template <class... As>
 void printe(As&&... as){
-    _prints(std::cerr, [](ostream& out, auto e){ out << e; }, forward<As>(as)...);
+    __prints(std::cerr, [](ostream& out, auto e){ out << e; }, forward<As>(as)...);
 }
 template <class... As>
 void printw(int width, As&&... as){
-    _prints(std::cout, [width](ostream& out, auto e){ out << std::setw(width) << e; }, forward<As>(as)...);
+    __prints(std::cout, [width](ostream& out, auto e){ out << std::setw(width) << e; }, forward<As>(as)...);
 }
 template <class... As>
 void printew(int width, As&&... as){
-    _prints(std::cerr, [width](ostream& out, auto e){ out << std::setw(width) << e; }, forward<As>(as)...);
+    __prints(std::cerr, [width](ostream& out, auto e){ out << std::setw(width) << e; }, forward<As>(as)...);
 }
 template <class... As>
 void printb(As&&... as){
-    _prints(std::cout, [](ostream& out, auto e){ out << std::bitset<64>(e); }, forward<As>(as)...);
+    __prints(std::cout, [](ostream& out, auto e){ out << std::bitset<64>(e); }, forward<As>(as)...);
 }
 template <class F, class... As>
 void printu(ostream& out, F&& f, As&&... as){
-    _prints(out, f, forward<As>(as)...);
+    __prints(out, f, forward<As>(as)...);
 }
 
 
@@ -223,11 +251,13 @@ void printu(ostream& out, F&& f, As&&... as){
 
 #ifdef LOCAL
 
+using rprint2::print;
 using rprint2::prints;
 using rprint2::printe;
 using rprint2::printw;
 using rprint2::printew;
 using rprint2::printb;
+// using rprint2::printo;
 using rprint2::printu;
 
 #define printd(...) prints(#__VA_ARGS__, __VA_ARGS__)
@@ -334,6 +364,7 @@ inline void testPrint(){
         pair<int, int> p = {2, 3};
     } a;
     prints(a, a);
+    prints(std::make_tuple(1, 3, "abc"));
 }
 
 #endif
