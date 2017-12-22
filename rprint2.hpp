@@ -1,4 +1,7 @@
 #pragma once
+#if __cplusplus < 201400
+C++14 is required.
+#else
 #include<bitset>
 #include<iomanip>
 #include<iostream>
@@ -6,6 +9,7 @@
 
 #include<chrono>
 // #include<mutex>
+
 
 namespace rprint2{
 
@@ -48,11 +52,13 @@ H2(rp_cout,     !COND(coutable2) && !COND(isArray) && !COND(isRoot) && COND(cout
 H2(rp_cout2,    !COND(isArray) && !COND(isRoot) && COND(coutable2));
 H2(rp_str,      !COND(coutable) && !COND(coutable2) && COND(strCastable));
 H2(rp_iter,     !COND(coutable) && !COND(coutable2) && !COND(strCastable) && COND(iterable));
-H2(rp_pair,     COND(isPair));
-H2(rp_tuple,     COND(isTuple));
+H2(rp_pair,     !COND(coutable2) && COND(isPair));
+H2(rp_tuple,    COND(isTuple));
 H2(rp_array,    COND(isArray));
 H2(rp_root,     COND(isRoot));
 H2(rp_other,    !COND(coutable) && !COND(coutable2) && !COND(strCastable) && !COND(iterable) && !COND(isPair) && !COND(isArray) && !COND(isRoot) && !COND(isTuple));
+#undef COND
+#undef H2
 
 template <class F, class A>
 void __print(ostream& out, F&& f, A&&);
@@ -71,6 +77,7 @@ CHRONO(:seconds, s)
 CHRONO(:microseconds, us)
 CHRONO(:milliseconds, ms)
 CHRONO(:nanoseconds, ns)
+#undef CHRONO
 
 //--------------------------------------------------------------------------------
 
@@ -215,35 +222,58 @@ void __prints(ostream& out, F&& f, A1&& a, As&&... as){
 
 //--------------------------------------------------------------------------------
 
-template <class... As>
-void print(As&&... as){
+enum{
+    trace = 1, debug, info, warn, error, fatal, off,
+    TRACE = 1, DEBUG, INFO, WARN, ERROR, FATAL, OFF,
+};
+
+#ifndef RP_LOGLEVEL
+#define RP_LOGLEVEL info
+#endif
+#define DEFAULT_LEVEL int Level = info
+#define COND -> std::enable_if_t< Level >= RP_LOGLEVEL, void>
+#define COND2 -> std::enable_if_t< Level < RP_LOGLEVEL, void>
+
+template <DEFAULT_LEVEL, class... As>
+auto print(As&&... as) COND {
     __print(std::cout, [](ostream& out, auto e){ out << e; }, forward<As>(as)...);
 }
-template <class... As>
-void prints(As&&... as){
+template <DEFAULT_LEVEL, class... As>
+auto prints(As&&... as) COND {
     __prints(std::cout, [](ostream& out, auto e){ out << e; }, forward<As>(as)...);
 }
-template <class... As>
-void printe(As&&... as){
+template <DEFAULT_LEVEL, class... As>
+auto printe(As&&... as) COND {
     __prints(std::cerr, [](ostream& out, auto e){ out << e; }, forward<As>(as)...);
 }
-template <class... As>
-void printw(int width, As&&... as){
+template <DEFAULT_LEVEL, class... As>
+auto printw(int width, As&&... as) COND {
     __prints(std::cout, [width](ostream& out, auto e){ out << std::setw(width) << e; }, forward<As>(as)...);
 }
-template <class... As>
-void printew(int width, As&&... as){
+template <DEFAULT_LEVEL, class... As>
+auto printew(int width, As&&... as) COND {
     __prints(std::cerr, [width](ostream& out, auto e){ out << std::setw(width) << e; }, forward<As>(as)...);
 }
-template <class... As>
-void printb(As&&... as){
+template <DEFAULT_LEVEL, class... As>
+auto printb(As&&... as) COND {
     __prints(std::cout, [](ostream& out, auto e){ out << std::bitset<64>(e); }, forward<As>(as)...);
 }
-template <class F, class... As>
-void printu(ostream& out, F&& f, As&&... as){
+template <DEFAULT_LEVEL, class F, class... As>
+auto printu(ostream& out, F&& f, As&&... as) COND {
     __prints(out, f, forward<As>(as)...);
 }
 
+template <DEFAULT_LEVEL, class... As> auto prints(As&&...) COND2 { }
+template <DEFAULT_LEVEL, class... As> auto print(As&&...) COND2 { }
+template <DEFAULT_LEVEL, class... As> auto printe(As&&...) COND2 { }
+template <DEFAULT_LEVEL, class... As> auto printw(int, As&&...) COND2 { }
+template <DEFAULT_LEVEL, class... As> auto printew(int, As&&...) COND2 { }
+template <DEFAULT_LEVEL, class... As> auto printb(As&&...) COND2 { }
+template <DEFAULT_LEVEL, class F, class... As> auto printu(ostream&, F&&, As&&...) COND2 { }
+
+#undef DEFAULT_LEVEL
+#undef COND
+#undef COND2
 
 } //namespace rprint2
 
@@ -365,6 +395,9 @@ inline void testPrint(){
     } a;
     prints(a, a);
     prints(std::make_tuple(1, 3, "abc"));
+    prints<rprint2::debug>(1);
 }
+
+#endif
 
 #endif

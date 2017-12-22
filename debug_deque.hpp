@@ -1,13 +1,13 @@
 #include<deque>
 #define Func(name)\
     template <class... A>\
-    decltype(auto) name(A&&... args){ return data.name(std::forward<A>(args)...); }
+    decltype(auto) name(A&&... args){ return _data.name(std::forward<A>(args)...); }
 template <class T>
 struct DebugDeque {
-    std::deque<T> data;
-    // std::vector<T> data;
+    std::deque<T> _data;
+    // std::vector<T> _data;
     template <class... A>
-    DebugDeque(A... args): data(forward<A>(args)...){ }
+    DebugDeque(A... args): _data(forward<A>(args)...){ }
     Func(at);
     Func(insert);
     Func(push_back);
@@ -23,19 +23,21 @@ struct DebugDeque {
     Func(rend);
     Func(clear);
     Func(emplace_back);
+    Func(erase);
+    Func(data);
     void reserve(int){ }
     void swap(DebugDeque& dd) noexcept{
-        data.swap(dd.data);
+        _data.swap(dd._data);
     }
     template <class I>
     T& operator [] (I idx){
-        // return data[idx];
-        return data.at(idx);
+        // return _data[idx];
+        return _data.at(idx);
     }
     template <class I>
     const T& operator [] (I idx) const {
-        // return data[idx];
-        return data.at(idx);
+        // return _data[idx];
+        return _data.at(idx);
     }
 };
 #undef Func
