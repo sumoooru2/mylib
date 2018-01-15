@@ -7,7 +7,8 @@ struct DebugDeque {
     std::deque<T> _data;
     // std::vector<T> _data;
     template <class... A>
-    DebugDeque(A... args): _data(forward<A>(args)...){ }
+    DebugDeque(A... args): _data(std::forward<A>(args)...){ }
+    DebugDeque(std::initializer_list<T>&& il): _data(il){ }
     Func(at);
     Func(insert);
     Func(push_back);

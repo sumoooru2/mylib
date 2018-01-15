@@ -234,6 +234,9 @@ enum{
 #define COND -> std::enable_if_t< Level >= RP_LOGLEVEL, void>
 #define COND2 -> std::enable_if_t< Level < RP_LOGLEVEL, void>
 
+// TODO
+// printd<rprint2::WARN>(123);
+
 template <DEFAULT_LEVEL, class... As>
 auto print(As&&... as) COND {
     __print(std::cout, [](ostream& out, auto e){ out << e; }, forward<As>(as)...);
