@@ -57,6 +57,7 @@ H2(rp_tuple,    COND(isTuple));
 H2(rp_array,    COND(isArray));
 H2(rp_root,     COND(isRoot));
 H2(rp_other,    !COND(coutable) && !COND(coutable2) && !COND(strCastable) && !COND(iterable) && !COND(isPair) && !COND(isArray) && !COND(isRoot) && !COND(isTuple));
+
 #undef COND
 #undef H2
 
@@ -295,6 +296,9 @@ using rprint2::printu;
 
 #define printd(...) prints(#__VA_ARGS__, __VA_ARGS__)
 #define printde(...) printe(#__VA_ARGS__, __VA_ARGS__)
+#define printdu(arg1, arg2, ...) printu(arg1, arg2, #__VA_ARGS__, __VA_ARGS__)
+#define printd4(...) prints<4>(#__VA_ARGS__, __VA_ARGS__)
+#define printde4(...) printe<4>(#__VA_ARGS__, __VA_ARGS__)
 
 #endif
 

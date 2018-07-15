@@ -12,6 +12,7 @@ struct DebugDeque {
     Func(at);
     Func(insert);
     Func(push_back);
+    void push_back(const T& il){ _data.push_back(il); }
     Func(resize);
     Func(back);
     Func(pop_back);
@@ -30,6 +31,10 @@ struct DebugDeque {
     void swap(DebugDeque& dd) noexcept{
         _data.swap(dd._data);
     }
+    template <class U>
+    bool operator == (U&& v){ return _data == v._data; }
+    template <class U>
+    bool operator != (U&& v){ return _data != v._data; }
     template <class I>
     T& operator [] (I idx){
         // return _data[idx];
