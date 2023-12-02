@@ -16,7 +16,7 @@ namespace rprint2{
 using std::string;
 using std::true_type;
 using std::false_type;
-using std::forward;
+// using std::forward;
 using std::ostream;
 
 template <class T>
@@ -30,7 +30,7 @@ using String = Raw<const char*>;
     template <class... A>\
     false_type func(A&&...)
 H1(coutable,    std::cout << a);
-H1(coutable2,   a >> std::cout);
+// H1(coutable2,   a >> std::cout);
 H1(iterable,    (a.begin(), a.end()));
 H1(strCastable, (string)a);
 H1(isPair,      (a.first, a.second));
@@ -44,19 +44,24 @@ template <class... A>
 false_type isTuple(A&&...);
 H1(isRoot,      (a->dests));
 
-#define COND(func) std::is_same<true_type, decltype(func(forward<A>(a)))>::value
+#define COND(func) std::is_same<true_type, decltype(func(std::forward<A>(a)))>::value
 #define H2(func, cond)\
     template <class A>\
     auto func(A&& a) -> std::enable_if_t<cond, void>
-H2(rp_cout,     !COND(coutable2) && !COND(isArray) && !COND(isRoot) && COND(coutable));
-H2(rp_cout2,    !COND(isArray) && !COND(isRoot) && COND(coutable2));
-H2(rp_str,      !COND(coutable) && !COND(coutable2) && COND(strCastable));
-H2(rp_iter,     !COND(coutable) && !COND(coutable2) && !COND(strCastable) && COND(iterable));
-H2(rp_pair,     !COND(coutable2) && COND(isPair));
+H2(rp_cout,     !COND(isArray) && !COND(isRoot) && COND(coutable));
+// H2(rp_cout,     !COND(coutable2) && !COND(isArray) && !COND(isRoot) && COND(coutable));
+// H2(rp_cout2,    !COND(isArray) && !COND(isRoot) && COND(coutable2));
+H2(rp_str,      !COND(coutable) && COND(strCastable));
+H2(rp_iter,     !COND(coutable) && !COND(strCastable) && COND(iterable));
+H2(rp_pair,     COND(isPair));
+// H2(rp_str,      !COND(coutable) && !COND(coutable2) && COND(strCastable));
+// H2(rp_iter,     !COND(coutable) && !COND(coutable2) && !COND(strCastable) && COND(iterable));
+// H2(rp_pair,     !COND(coutable2) && COND(isPair));
 H2(rp_tuple,    COND(isTuple));
 H2(rp_array,    COND(isArray));
 H2(rp_root,     COND(isRoot));
-H2(rp_other,    !COND(coutable) && !COND(coutable2) && !COND(strCastable) && !COND(iterable) && !COND(isPair) && !COND(isArray) && !COND(isRoot) && !COND(isTuple));
+H2(rp_other,    !COND(coutable) && !COND(strCastable) && !COND(iterable) && !COND(isPair) && !COND(isArray) && !COND(isRoot) && !COND(isTuple));
+// H2(rp_other,    !COND(coutable) && !COND(coutable2) && !COND(strCastable) && !COND(iterable) && !COND(isPair) && !COND(isArray) && !COND(isRoot) && !COND(isTuple));
 
 #undef COND
 #undef H2
@@ -101,10 +106,10 @@ auto _print(ostream& out, F&& f, A&& a) -> decltype(rp_cout(a)){
     f(out, a);
 }
 //TODO
-template <class F, class A>
-auto _print(ostream& out, F&&, A&& a) -> decltype(rp_cout2(a)){
-    a >> out;
-}
+// template <class F, class A>
+// auto _print(ostream& out, F&&, A&& a) -> decltype(rp_cout2(a)){
+//     a >> out;
+// }
 template <class F, class A>
 auto _print(ostream& out, F&& f, A&& a) -> decltype(rp_str(a)){
     f(out, (string)a);
@@ -138,6 +143,7 @@ auto _print(ostream& out, F&& f, T&& t) -> decltype(rp_tuple(t)){
 }
 template <class F, class A>
 auto _print(ostream& out, F&&, A&& a) -> decltype(rp_other(a)){
+    out << "dt " << decltype(coutable(a))::value << '\n';
     print_something(out, a);
 }
 
@@ -203,22 +209,26 @@ auto print_tuple(ostream& out, F&& f, std::tuple<S...> t) -> std::enable_if_t< N
 
 template <class F, class A>
 void __print(ostream& out, F&& f, A&& a){
-    _print(out, f, forward<A>(a));
+    _print(out, f, std::forward<A>(a));
 }
 template <class F, class A, class... As>
 void __print(ostream& out, F&& f, A&& a, As&&... as){
-    _print(out, f, forward<A>(a));
-    __print(out, f, forward<As>(as)...);
+    _print(out, f, std::forward<A>(a));
+    __print(out, f, std::forward<As>(as)...);
 }
 
+template <class F>
+void __prints(ostream& out, F&& f){
+    __print(out, f, Char{'\n'});
+}
 template <class F, class A>
 void __prints(ostream& out, F&& f, A&& a){
-    __print(out, f, forward<A>(a), Char{'\n'});
+    __print(out, f, std::forward<A>(a), Char{'\n'});
 }
 template <class F, class A1, class... As>
 void __prints(ostream& out, F&& f, A1&& a, As&&... as){
-    __print(out, f, forward<A1>(a), Char{' '});
-    __prints(out, f, forward<As>(as)...);
+    __print(out, f, std::forward<A1>(a), Char{' '});
+    __prints(out, f, std::forward<As>(as)...);
 }
 
 //--------------------------------------------------------------------------------
@@ -240,40 +250,70 @@ enum{
 
 template <DEFAULT_LEVEL, class... As>
 auto print(As&&... as) COND {
-    __print(std::cout, [](ostream& out, auto e){ out << e; }, forward<As>(as)...);
-}
-template <DEFAULT_LEVEL, class... As>
-auto prints(As&&... as) COND {
-    __prints(std::cout, [](ostream& out, auto e){ out << e; }, forward<As>(as)...);
+    __print(std::cout, [](ostream& out, auto e){ out << e; }, std::forward<As>(as)...);
 }
 template <DEFAULT_LEVEL, class... As>
 auto printe(As&&... as) COND {
-    __prints(std::cerr, [](ostream& out, auto e){ out << e; }, forward<As>(as)...);
+    __prints(std::cerr, [](ostream& out, auto e){ out << e; }, std::forward<As>(as)...);
+}
+template <DEFAULT_LEVEL, class... As>
+auto prints(As&&... as) COND {
+    __prints(std::cout, [](ostream& out, auto e){ out << e; }, std::forward<As>(as)...);
+}
+template <DEFAULT_LEVEL, class... As>
+auto printe0(As&&... as) COND {
+    __print(std::cerr, [](ostream& out, auto e){ out << e; }, std::forward<As>(as)...);
+}
+template <DEFAULT_LEVEL, class... As>
+auto printse(As&&... as) COND {
+    __prints(std::cerr, [](ostream& out, auto&& e){ out << e; }, std::forward<As>(as)...);
 }
 template <DEFAULT_LEVEL, class... As>
 auto printw(int width, As&&... as) COND {
-    __prints(std::cout, [width](ostream& out, auto e){ out << std::setw(width) << e; }, forward<As>(as)...);
+    __prints(std::cout, [width](ostream& out, auto e){ out << std::setw(width) << e; }, std::forward<As>(as)...);
 }
 template <DEFAULT_LEVEL, class... As>
-auto printew(int width, As&&... as) COND {
-    __prints(std::cerr, [width](ostream& out, auto e){ out << std::setw(width) << e; }, forward<As>(as)...);
+auto printwe(int width, As&&... as) COND {
+    __prints(std::cerr, [width](ostream& out, auto e){ out << std::setw(width) << e; }, std::forward<As>(as)...);
+}
+template <DEFAULT_LEVEL, class... As>
+auto printwe0(int width, As&&... as) COND {
+    __print(std::cerr, [width](ostream& out, auto e){ out << std::setw(width) << e; }, std::forward<As>(as)...);
 }
 template <DEFAULT_LEVEL, class... As>
 auto printb(As&&... as) COND {
-    __prints(std::cout, [](ostream& out, auto e){ out << std::bitset<64>(e); }, forward<As>(as)...);
+    __prints(std::cout, [](ostream& out, auto e){ out << std::bitset<64>(e); }, std::forward<As>(as)...);
 }
+template <DEFAULT_LEVEL, class... As>
+auto printbe(As&&... as) COND {
+    __prints(std::cerr, [](ostream& out, auto e){ out << std::bitset<8 * sizeof(e)>(e); }, std::forward<As>(as)...);
+}
+// template <DEFAULT_LEVEL, class... As>
+// auto printbe(As&&... as) COND {
+//     __prints(std::cerr, [](ostream& out, auto e){ out << std::bitset<64>(e); }, std::forward<As>(as)...);
+// }
 template <DEFAULT_LEVEL, class F, class... As>
 auto printu(ostream& out, F&& f, As&&... as) COND {
-    __prints(out, f, forward<As>(as)...);
+    __prints(out, f, std::forward<As>(as)...);
+}
+template <DEFAULT_LEVEL, class F, class... As>
+auto printu0(ostream& out, F&& f, As&&... as) COND {
+    __print(out, f, std::forward<As>(as)...);
 }
 
 template <DEFAULT_LEVEL, class... As> auto prints(As&&...) COND2 { }
 template <DEFAULT_LEVEL, class... As> auto print(As&&...) COND2 { }
+// template <DEFAULT_LEVEL, class... As> auto printe() COND2 { }
 template <DEFAULT_LEVEL, class... As> auto printe(As&&...) COND2 { }
+template <DEFAULT_LEVEL, class... As> auto printe0(As&&...) COND2 { }
+template <DEFAULT_LEVEL, class... As> auto printse(As&&...) COND2 { }
 template <DEFAULT_LEVEL, class... As> auto printw(int, As&&...) COND2 { }
-template <DEFAULT_LEVEL, class... As> auto printew(int, As&&...) COND2 { }
+template <DEFAULT_LEVEL, class... As> auto printwe(int, As&&...) COND2 { }
+template <DEFAULT_LEVEL, class... As> auto printwe0(int, As&&...) COND2 { }
 template <DEFAULT_LEVEL, class... As> auto printb(As&&...) COND2 { }
+template <DEFAULT_LEVEL, class... As> auto printbe(As&&...) COND2 { }
 template <DEFAULT_LEVEL, class F, class... As> auto printu(ostream&, F&&, As&&...) COND2 { }
+template <DEFAULT_LEVEL, class F, class... As> auto printu0(ostream&, F&&, As&&...) COND2 { }
 
 #undef DEFAULT_LEVEL
 #undef COND
@@ -286,19 +326,32 @@ template <DEFAULT_LEVEL, class F, class... As> auto printu(ostream&, F&&, As&&..
 #ifdef LOCAL
 
 using rprint2::print;
-using rprint2::prints;
 using rprint2::printe;
+using rprint2::prints;
+using rprint2::printse;
+using rprint2::printe0;
+// using rprint2::printle;
 using rprint2::printw;
-using rprint2::printew;
+using rprint2::printwe;
+using rprint2::printwe0;
 using rprint2::printb;
+using rprint2::printbe;
 // using rprint2::printo;
 using rprint2::printu;
+using rprint2::printu0;
 
-#define printd(...) prints(#__VA_ARGS__, __VA_ARGS__)
-#define printde(...) printe(#__VA_ARGS__, __VA_ARGS__)
-#define printdu(arg1, arg2, ...) printu(arg1, arg2, #__VA_ARGS__, __VA_ARGS__)
-#define printd4(...) prints<4>(#__VA_ARGS__, __VA_ARGS__)
-#define printde4(...) printe<4>(#__VA_ARGS__, __VA_ARGS__)
+#define printWarn
+#define printError
+
+#define printd(...)                 prints(#__VA_ARGS__, ':', __VA_ARGS__)
+#define printde(...)                printse(#__VA_ARGS__, ':', __VA_ARGS__)
+#define printdbe(...)               printe0(#__VA_ARGS__, ": "); printbe(__VA_ARGS__)
+#define printdwe(w, ...)            printe0(#__VA_ARGS__, ": "); printwe((w), __VA_ARGS__)
+#define printdu(arg1, arg2, ...)    printu(arg1, arg2, #__VA_ARGS__, ':', __VA_ARGS__)
+#define printd4(...)                prints<4>(#__VA_ARGS__, ':', __VA_ARGS__)
+#define printde4(...)               printse<4>(#__VA_ARGS__, ':', __VA_ARGS__)
+#define printd5(...)                prints<5>(#__VA_ARGS__, ':', __VA_ARGS__)
+#define printde5(...)               printse<5>(#__VA_ARGS__, ':', __VA_ARGS__)
 
 #endif
 
@@ -374,9 +427,9 @@ inline void testPrint(){
     prints(sp);
     prints(1h, 1min, 1s, 1ms, 1us, 1ns);
     prints(1, 2, 3);
-    printe(1, 2, 3);
+    printse(1, 2, 3);
     printw(2, 1, 2, 3);
-    printew(2, 1, 2, v);
+    // printew(2, 1, 2, v);
     printu(cout, [](ostream& out, auto e){ out << setw(3) << e; }, 1, 2, 3);
 
     vector<Node> nodes(10);
@@ -403,6 +456,11 @@ inline void testPrint(){
     prints(a, a);
     prints(std::make_tuple(1, 3, "abc"));
     prints<rprint2::debug>(1);
+
+    for(int i = 0; i < 3; i++){
+        printe0(i);
+    }
+    printe();
 }
 
 #endif
